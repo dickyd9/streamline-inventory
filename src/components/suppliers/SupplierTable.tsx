@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { mockSuppliers } from '@/data/mockData';
+import { Supplier } from '@/types/inventory';
+import { mockSuppliers as initialSuppliers } from '@/data/mockData';
 import {
   Table,
   TableBody,
@@ -13,6 +14,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Edit, Trash2, Search, Plus, Mail, Phone } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SupplierDialog } from './SupplierDialog';
+import { DeleteSupplierDialog } from './DeleteSupplierDialog';
+import { toast } from 'sonner';
 
 const statusStyles = {
   active: 'bg-success/10 text-success border-success/20',
@@ -20,12 +24,62 @@ const statusStyles = {
 };
 
 export function SupplierTable() {
+  const [suppliers, setSuppliers] = useState<Supplier[]>(initialSuppliers);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Dialog states
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
 
-  const filteredSuppliers = mockSuppliers.filter(supplier =>
+  const filteredSuppliers = suppliers.filter(supplier =>
     supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     supplier.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleAddSupplier = () => {
+    setSelectedSupplier(null);
+    setDialogOpen(true);
+  };
+
+  const handleEditSupplier = (supplier: Supplier) => {
+    setSelectedSupplier(supplier);
+    setDialogOpen(true);
+  };
+
+  const handleDeleteClick = (supplier: Supplier) => {
+    setSelectedSupplier(supplier);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleSaveSupplier = (supplierData: Omit<Supplier, 'id'>) => {
+    if (selectedSupplier) {
+      // Edit existing
+      setSuppliers(suppliers.map(s => 
+        s.id === selectedSupplier.id 
+          ? { ...s, ...supplierData }
+          : s
+      ));
+      toast.success('Supplier updated successfully');
+    } else {
+      // Add new
+      const newSupplier: Supplier = {
+        ...supplierData,
+        id: Date.now().toString(),
+      };
+      setSuppliers([...suppliers, newSupplier]);
+      toast.success('Supplier added successfully');
+    }
+  };
+
+  const handleDeleteConfirm = () => {
+    if (selectedSupplier) {
+      setSuppliers(suppliers.filter(s => s.id !== selectedSupplier.id));
+      toast.success('Supplier deleted successfully');
+      setDeleteDialogOpen(false);
+      setSelectedSupplier(null);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -40,7 +94,7 @@ export function SupplierTable() {
             className="pl-9"
           />
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={handleAddSupplier}>
           <Plus className="w-4 h-4" />
           Add Supplier
         </Button>
@@ -61,10 +115,20 @@ export function SupplierTable() {
                 </Badge>
               </div>
               <div className="flex gap-1">
-                <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8"
+                  onClick={() => handleEditSupplier(supplier)}
+                >
                   <Edit className="w-4 h-4" />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8 text-destructive"
+                  onClick={() => handleDeleteClick(supplier)}
+                >
                   <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
@@ -115,10 +179,20 @@ export function SupplierTable() {
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8"
+                      onClick={() => handleEditSupplier(supplier)}
+                    >
                       <Edit className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 text-destructive"
+                      onClick={() => handleDeleteClick(supplier)}
+                    >
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
@@ -128,6 +202,20 @@ export function SupplierTable() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Dialogs */}
+      <SupplierDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        supplier={selectedSupplier}
+        onSave={handleSaveSupplier}
+      />
+      <DeleteSupplierDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        supplier={selectedSupplier}
+        onConfirm={handleDeleteConfirm}
+      />
     </div>
   );
 }

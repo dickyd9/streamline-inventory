@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { mockPurchaseOrders } from '@/data/mockData';
+import { PurchaseOrder } from '@/types/inventory';
+import { mockPurchaseOrders as initialOrders } from '@/data/mockData';
 import {
   Table,
   TableBody,
@@ -25,9 +26,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Eye, Search, Plus, FileText } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+import { Eye, Search, Plus, FileText, MoreHorizontal, CheckCircle, XCircle, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { PurchaseOrder } from '@/types/inventory';
+import { PurchaseOrderDialog } from './PurchaseOrderDialog';
+import { toast } from 'sonner';
 
 const statusStyles = {
   pending: 'bg-warning/10 text-warning border-warning/20',
@@ -96,15 +105,35 @@ function OrderDetailsDialog({ order }: { order: PurchaseOrder }) {
 }
 
 export function PurchaseOrderTable() {
+  const [orders, setOrders] = useState<PurchaseOrder[]>(initialOrders);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [dialogOpen, setDialogOpen] = useState(false);
 
-  const filteredOrders = mockPurchaseOrders.filter(order => {
+  const filteredOrders = orders.filter(order => {
     const matchesSearch = order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          order.supplier.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  const handleCreateOrder = (orderData: Omit<PurchaseOrder, 'id' | 'orderNumber'>) => {
+    const orderNumber = `PO-${new Date().getFullYear()}-${String(orders.length + 1).padStart(3, '0')}`;
+    const newOrder: PurchaseOrder = {
+      ...orderData,
+      id: Date.now().toString(),
+      orderNumber,
+    };
+    setOrders([newOrder, ...orders]);
+    toast.success(`Order ${orderNumber} created successfully`);
+  };
+
+  const updateOrderStatus = (orderId: string, newStatus: PurchaseOrder['status']) => {
+    setOrders(orders.map(o => 
+      o.id === orderId ? { ...o, status: newStatus } : o
+    ));
+    toast.success(`Order status updated to ${newStatus}`);
+  };
 
   return (
     <div className="space-y-4">
@@ -123,7 +152,7 @@ export function PurchaseOrderTable() {
           <SelectTrigger className="w-full sm:w-48">
             <SelectValue placeholder="All Status" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-popover">
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="approved">Approved</SelectItem>
@@ -131,7 +160,7 @@ export function PurchaseOrderTable() {
             <SelectItem value="cancelled">Cancelled</SelectItem>
           </SelectContent>
         </Select>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => setDialogOpen(true)}>
           <Plus className="w-4 h-4" />
           New Order
         </Button>
@@ -167,13 +196,63 @@ export function PurchaseOrderTable() {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">
-                  <OrderDetailsDialog order={order} />
+                  <div className="flex justify-end gap-1">
+                    <OrderDetailsDialog order={order} />
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="bg-popover">
+                        {order.status === 'pending' && (
+                          <>
+                            <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'approved')}>
+                              <CheckCircle className="w-4 h-4 mr-2 text-primary" />
+                              Approve Order
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                          </>
+                        )}
+                        {order.status === 'approved' && (
+                          <>
+                            <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'received')}>
+                              <Package className="w-4 h-4 mr-2 text-success" />
+                              Mark as Received
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                          </>
+                        )}
+                        {(order.status === 'pending' || order.status === 'approved') && (
+                          <DropdownMenuItem 
+                            onClick={() => updateOrderStatus(order.id, 'cancelled')}
+                            className="text-destructive"
+                          >
+                            <XCircle className="w-4 h-4 mr-2" />
+                            Cancel Order
+                          </DropdownMenuItem>
+                        )}
+                        {order.status === 'cancelled' && (
+                          <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'pending')}>
+                            Reopen Order
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
+
+      {/* Create Order Dialog */}
+      <PurchaseOrderDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSave={handleCreateOrder}
+      />
     </div>
   );
 }
