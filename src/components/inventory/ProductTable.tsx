@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Product } from '@/types/inventory';
-import { mockProducts } from '@/data/mockData';
+import { mockProducts as initialProducts } from '@/data/mockData';
 import {
   Table,
   TableBody,
@@ -21,6 +21,9 @@ import {
 } from '@/components/ui/select';
 import { Edit, Trash2, Search, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ProductDialog } from './ProductDialog';
+import { DeleteProductDialog } from './DeleteProductDialog';
+import { toast } from 'sonner';
 
 const getStockStatus = (product: Product) => {
   if (product.quantity === 0) return 'out-of-stock';
@@ -41,17 +44,68 @@ const stockLabels = {
 };
 
 export function ProductTable() {
+  const [products, setProducts] = useState<Product[]>(initialProducts);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  
+  // Dialog states
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-  const categories = [...new Set(mockProducts.map(p => p.category))];
+  const categories = [...new Set(products.map(p => p.category))];
 
-  const filteredProducts = mockProducts.filter(product => {
+  const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.sku.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
+
+  const handleAddProduct = () => {
+    setSelectedProduct(null);
+    setDialogOpen(true);
+  };
+
+  const handleEditProduct = (product: Product) => {
+    setSelectedProduct(product);
+    setDialogOpen(true);
+  };
+
+  const handleDeleteClick = (product: Product) => {
+    setSelectedProduct(product);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleSaveProduct = (productData: Omit<Product, 'id' | 'lastUpdated'>) => {
+    if (selectedProduct) {
+      // Edit existing
+      setProducts(products.map(p => 
+        p.id === selectedProduct.id 
+          ? { ...p, ...productData, lastUpdated: new Date().toISOString().split('T')[0] }
+          : p
+      ));
+      toast.success('Product updated successfully');
+    } else {
+      // Add new
+      const newProduct: Product = {
+        ...productData,
+        id: Date.now().toString(),
+        lastUpdated: new Date().toISOString().split('T')[0],
+      };
+      setProducts([...products, newProduct]);
+      toast.success('Product added successfully');
+    }
+  };
+
+  const handleDeleteConfirm = () => {
+    if (selectedProduct) {
+      setProducts(products.filter(p => p.id !== selectedProduct.id));
+      toast.success('Product deleted successfully');
+      setDeleteDialogOpen(false);
+      setSelectedProduct(null);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -70,14 +124,14 @@ export function ProductTable() {
           <SelectTrigger className="w-full sm:w-48">
             <SelectValue placeholder="All Categories" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-popover">
             <SelectItem value="all">All Categories</SelectItem>
             {categories.map(cat => (
               <SelectItem key={cat} value={cat}>{cat}</SelectItem>
             ))}
           </SelectContent>
         </Select>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={handleAddProduct}>
           <Plus className="w-4 h-4" />
           Add Product
         </Button>
@@ -123,10 +177,20 @@ export function ProductTable() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8"
+                        onClick={() => handleEditProduct(product)}
+                      >
                         <Edit className="w-4 h-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-destructive"
+                        onClick={() => handleDeleteClick(product)}
+                      >
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
@@ -137,6 +201,20 @@ export function ProductTable() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Dialogs */}
+      <ProductDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        product={selectedProduct}
+        onSave={handleSaveProduct}
+      />
+      <DeleteProductDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        product={selectedProduct}
+        onConfirm={handleDeleteConfirm}
+      />
     </div>
   );
 }

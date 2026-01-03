@@ -2,8 +2,10 @@ import { mockProducts } from '@/data/mockData';
 import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { useNavigate } from 'react-router-dom';
 
 export function LowStockAlert() {
+  const navigate = useNavigate();
   const lowStockItems = mockProducts.filter(p => p.quantity <= p.minStock);
 
   return (
@@ -17,7 +19,7 @@ export function LowStockAlert() {
       </div>
       <div className="space-y-4">
         {lowStockItems.map((product) => {
-          const stockPercentage = Math.round((product.quantity / product.minStock) * 100);
+          const stockPercentage = Math.min(Math.round((product.quantity / product.minStock) * 100), 100);
           return (
             <div key={product.id} className="space-y-2">
               <div className="flex items-center justify-between">
@@ -37,7 +39,11 @@ export function LowStockAlert() {
           );
         })}
       </div>
-      <Button className="w-full mt-4" variant="outline">
+      <Button 
+        className="w-full mt-4" 
+        variant="outline"
+        onClick={() => navigate('/purchases')}
+      >
         Create Purchase Order
       </Button>
     </div>
