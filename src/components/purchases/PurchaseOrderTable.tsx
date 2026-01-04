@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { PurchaseOrder } from '@/types/inventory';
-import { mockPurchaseOrders as initialOrders } from '@/data/mockData';
+import { PurchaseOrder, StockMovement, Product, calculateWeightedAverageCost } from '@/types/inventory';
+import { mockPurchaseOrders as initialOrders, mockProducts, mockStockMovements } from '@/data/mockData';
 import {
   Table,
   TableBody,
@@ -55,7 +55,7 @@ function OrderDetailsDialog({ order }: { order: PurchaseOrder }) {
           <Eye className="w-4 h-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5" />
@@ -95,6 +95,7 @@ function OrderDetailsDialog({ order }: { order: PurchaseOrder }) {
                     <th className="text-center p-3 font-medium">Unit</th>
                     <th className="text-right p-3 font-medium">Total Pcs</th>
                     <th className="text-right p-3 font-medium">Unit Price</th>
+                    <th className="text-right p-3 font-medium">Cost/Pc</th>
                     <th className="text-right p-3 font-medium">Amount</th>
                   </tr>
                 </thead>
@@ -108,6 +109,7 @@ function OrderDetailsDialog({ order }: { order: PurchaseOrder }) {
                       </td>
                       <td className="p-3 text-right text-muted-foreground">{item.totalPcs}</td>
                       <td className="p-3 text-right">${item.unitPrice.toFixed(2)}</td>
+                      <td className="p-3 text-right text-muted-foreground">${item.costPerPc.toFixed(2)}</td>
                       <td className="p-3 text-right font-medium">${(item.quantity * item.unitPrice).toFixed(2)}</td>
                     </tr>
                   ))}
@@ -133,6 +135,8 @@ function OrderDetailsDialog({ order }: { order: PurchaseOrder }) {
 
 export function PurchaseOrderTable() {
   const [orders, setOrders] = useState<PurchaseOrder[]>(initialOrders);
+  const [products, setProducts] = useState<Product[]>(mockProducts);
+  const [movements, setMovements] = useState<StockMovement[]>(mockStockMovements);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -160,6 +164,61 @@ export function PurchaseOrderTable() {
       o.id === orderId ? { ...o, status: newStatus } : o
     ));
     toast.success(`Order status updated to ${newStatus}`);
+  };
+
+  // Receive PO: create stock movements and update product costs with weighted average
+  const receiveOrder = (orderId: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+
+    const today = new Date().toISOString().split('T')[0];
+
+    // Create stock in movements for each item
+    const newMovements: StockMovement[] = order.items.map((item, idx) => ({
+      id: `${Date.now()}-${idx}`,
+      productId: item.productId,
+      productName: item.productName,
+      type: 'in' as const,
+      quantity: item.quantity,
+      unit: item.unit,
+      pcsPerUnit: item.pcsPerUnit,
+      totalPcs: item.totalPcs,
+      costPerPc: item.costPerPc,
+      totalValue: item.quantity * item.unitPrice,
+      reference: order.orderNumber,
+      notes: `Received from ${order.supplier}`,
+      date: today,
+      createdBy: 'Current User',
+    }));
+
+    setMovements([...newMovements, ...movements]);
+
+    // Update product quantities and weighted average cost
+    setProducts(products.map(p => {
+      const receivedItem = order.items.find(i => i.productId === p.id);
+      if (receivedItem) {
+        const newCostPrice = calculateWeightedAverageCost(
+          p.quantity,
+          p.costPrice,
+          receivedItem.totalPcs,
+          receivedItem.costPerPc
+        );
+        return {
+          ...p,
+          quantity: p.quantity + receivedItem.totalPcs,
+          costPrice: newCostPrice,
+          lastUpdated: today,
+        };
+      }
+      return p;
+    }));
+
+    // Update order status
+    setOrders(orders.map(o =>
+      o.id === orderId ? { ...o, status: 'received' as const, receivedDate: today } : o
+    ));
+
+    toast.success(`${order.orderNumber} received! Stock updated with weighted average costing.`);
   };
 
   return (
@@ -250,9 +309,9 @@ export function PurchaseOrderTable() {
                           )}
                           {order.status === 'approved' && (
                             <>
-                              <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'received')}>
+                              <DropdownMenuItem onClick={() => receiveOrder(order.id)}>
                                 <Package className="w-4 h-4 mr-2 text-success" />
-                                Mark as Received
+                                Receive & Update Stock
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                             </>

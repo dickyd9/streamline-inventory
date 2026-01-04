@@ -2,17 +2,17 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { mockProducts } from '@/data/mockData';
 
 export function InventoryChart() {
-  // Group products by category
+  // Group products by category - use costPrice for inventory valuation
   const categoryData = mockProducts.reduce((acc, product) => {
     const existing = acc.find(item => item.category === product.category);
     if (existing) {
       existing.items += 1;
-      existing.value += product.quantity * product.unitPrice;
+      existing.value += product.quantity * product.costPrice;
     } else {
       acc.push({
         category: product.category,
         items: 1,
-        value: product.quantity * product.unitPrice,
+        value: product.quantity * product.costPrice,
       });
     }
     return acc;

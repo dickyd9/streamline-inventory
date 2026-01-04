@@ -47,7 +47,8 @@ export function PurchaseOrderDialog({ open, onOpenChange, onSave }: PurchaseOrde
       unit: 'pcs',
       pcsPerUnit: 1,
       unitPrice: 0,
-      totalPcs: 1
+      totalPcs: 1,
+      costPerPc: 0,
     }]);
   };
 
@@ -63,24 +64,28 @@ export function PurchaseOrderDialog({ open, onOpenChange, onSave }: PurchaseOrde
       const product = mockProducts.find(p => p.id === value);
       if (product) {
         const pcsPerUnit = UNIT_OPTIONS.find(u => u.type === currentItem.unit)?.pcsPerUnit || 1;
+        const unitPrice = product.costPrice * pcsPerUnit;
         newItems[index] = {
           ...currentItem,
           productId: value as string,
           productName: product.name,
-          unitPrice: product.unitPrice * pcsPerUnit, // Calculate price per selected unit
+          unitPrice,
           totalPcs: currentItem.quantity * pcsPerUnit,
+          costPerPc: product.costPrice,
         };
       }
     } else if (field === 'unit') {
       const unitInfo = UNIT_OPTIONS.find(u => u.type === value);
       const product = mockProducts.find(p => p.id === currentItem.productId);
       if (unitInfo && product) {
+        const unitPrice = product.costPrice * unitInfo.pcsPerUnit;
         newItems[index] = {
           ...currentItem,
           unit: value as UnitType,
           pcsPerUnit: unitInfo.pcsPerUnit,
-          unitPrice: product.unitPrice * unitInfo.pcsPerUnit,
+          unitPrice,
           totalPcs: currentItem.quantity * unitInfo.pcsPerUnit,
+          costPerPc: product.costPrice,
         };
       }
     } else if (field === 'quantity') {
@@ -91,9 +96,11 @@ export function PurchaseOrderDialog({ open, onOpenChange, onSave }: PurchaseOrde
         totalPcs: qty * currentItem.pcsPerUnit,
       };
     } else if (field === 'unitPrice') {
+      const price = typeof value === 'number' ? value : parseFloat(value as string) || 0;
       newItems[index] = {
         ...currentItem,
-        unitPrice: typeof value === 'number' ? value : parseFloat(value as string) || 0,
+        unitPrice: price,
+        costPerPc: price / currentItem.pcsPerUnit,
       };
     }
     
@@ -181,7 +188,7 @@ export function PurchaseOrderDialog({ open, onOpenChange, onSave }: PurchaseOrde
                             <SelectContent className="bg-popover">
                               {mockProducts.map((prod) => (
                                 <SelectItem key={prod.id} value={prod.id}>
-                                  {prod.name} (${prod.unitPrice.toFixed(2)}/pcs)
+                                  {prod.name} (Cost: ${prod.costPrice.toFixed(2)}/pcs)
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -247,6 +254,7 @@ export function PurchaseOrderDialog({ open, onOpenChange, onSave }: PurchaseOrde
                         <div className="text-xs text-muted-foreground flex gap-4">
                           <span>Pieces per {item.unit}: <strong>{item.pcsPerUnit}</strong></span>
                           <span>Total pieces: <strong>{item.totalPcs}</strong></span>
+                          <span>Cost/pc: <strong>${item.costPerPc.toFixed(2)}</strong></span>
                         </div>
                       )}
                     </div>

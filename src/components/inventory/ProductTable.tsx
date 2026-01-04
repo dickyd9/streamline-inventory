@@ -180,8 +180,10 @@ export function ProductTable() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    ${product.unitPrice.toFixed(2)}
-                    <span className="text-xs text-muted-foreground">/{product.unit}</span>
+                    <div className="text-xs">
+                      <div>Cost: ${product.costPrice.toFixed(2)}</div>
+                      <div className="text-success">Sell: ${product.sellingPrice.toFixed(2)}</div>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className={cn(stockStyles[status])}>

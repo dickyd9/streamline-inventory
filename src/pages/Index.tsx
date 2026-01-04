@@ -10,7 +10,7 @@ const Dashboard = () => {
   const totalProducts = mockProducts.length;
   const lowStockCount = mockProducts.filter(p => p.quantity <= p.minStock).length;
   const pendingOrders = mockPurchaseOrders.filter(o => o.status === 'pending').length;
-  const totalInventoryValue = mockProducts.reduce((acc, p) => acc + (p.quantity * p.unitPrice), 0);
+  const totalInventoryValue = mockProducts.reduce((acc, p) => acc + (p.quantity * p.costPrice), 0);
 
   return (
     <MainLayout title="Dashboard">

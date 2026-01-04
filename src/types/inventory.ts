@@ -24,7 +24,8 @@ export interface Product {
   category: string;
   quantity: number; // stored in base unit (pcs or kg/liter)
   minStock: number;
-  unitPrice: number; // price per base unit
+  costPrice: number; // weighted average cost per base unit
+  sellingPrice: number; // selling price per base unit
   unit: UnitType; // base unit for this product
   supplier: string;
   lastUpdated: string;
@@ -48,6 +49,7 @@ export interface PurchaseOrder {
   status: 'pending' | 'approved' | 'received' | 'cancelled';
   orderDate: string;
   expectedDate: string;
+  receivedDate?: string;
 }
 
 export interface PurchaseOrderItem {
@@ -58,6 +60,35 @@ export interface PurchaseOrderItem {
   pcsPerUnit: number;
   unitPrice: number; // price per selected unit
   totalPcs: number; // total pieces calculated
+  costPerPc: number; // calculated cost per piece for this purchase
+}
+
+// Sales Order types
+export interface SalesOrder {
+  id: string;
+  orderNumber: string;
+  customerName: string;
+  items: SalesOrderItem[];
+  totalRevenue: number;
+  totalCost: number;
+  totalMargin: number;
+  marginPercentage: number;
+  status: 'pending' | 'completed' | 'cancelled';
+  orderDate: string;
+}
+
+export interface SalesOrderItem {
+  productId: string;
+  productName: string;
+  quantity: number;
+  unit: UnitType;
+  pcsPerUnit: number;
+  sellingPrice: number; // selling price per unit
+  costPrice: number; // cost price per unit (from weighted average)
+  totalPcs: number;
+  revenue: number;
+  cost: number;
+  margin: number;
 }
 
 export type StockStatus = 'in-stock' | 'low-stock' | 'out-of-stock';
@@ -73,8 +104,24 @@ export interface StockMovement {
   unit: UnitType;
   pcsPerUnit: number;
   totalPcs: number;
-  reference: string; // PO number, adjustment reason, etc.
+  costPerPc: number; // cost per piece at time of movement
+  totalValue: number; // total cost value
+  sellingPricePerPc?: number; // only for stock out (sales)
+  totalRevenue?: number; // only for stock out (sales)
+  margin?: number; // only for stock out (sales)
+  reference: string; // PO number, SO number, adjustment reason, etc.
   notes: string;
   date: string;
   createdBy: string;
+}
+
+// Utility function to calculate weighted average cost
+export function calculateWeightedAverageCost(
+  existingQty: number,
+  existingCost: number,
+  newQty: number,
+  newCostPerPc: number
+): number {
+  if (existingQty + newQty === 0) return 0;
+  return ((existingQty * existingCost) + (newQty * newCostPerPc)) / (existingQty + newQty);
 }

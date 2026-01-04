@@ -35,7 +35,8 @@ export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDi
     category: '',
     quantity: 0,
     minStock: 0,
-    unitPrice: 0,
+    costPrice: 0,
+    sellingPrice: 0,
     unit: 'pcs' as UnitType,
     supplier: '',
   });
@@ -48,7 +49,8 @@ export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDi
         category: product.category,
         quantity: product.quantity,
         minStock: product.minStock,
-        unitPrice: product.unitPrice,
+        costPrice: product.costPrice,
+        sellingPrice: product.sellingPrice,
         unit: product.unit,
         supplier: product.supplier,
       });
@@ -59,7 +61,8 @@ export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDi
         category: '',
         quantity: 0,
         minStock: 0,
-        unitPrice: 0,
+        costPrice: 0,
+        sellingPrice: 0,
         unit: 'pcs',
         supplier: '',
       });
@@ -153,17 +156,30 @@ export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDi
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="unitPrice">Unit Price ($)</Label>
+              <Label htmlFor="costPrice">Cost Price ($)</Label>
               <Input
-                id="unitPrice"
+                id="costPrice"
                 type="number"
                 min="0"
                 step="0.01"
-                value={formData.unitPrice}
-                onChange={(e) => setFormData({ ...formData, unitPrice: parseFloat(e.target.value) || 0 })}
+                value={formData.costPrice}
+                onChange={(e) => setFormData({ ...formData, costPrice: parseFloat(e.target.value) || 0 })}
                 required
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="sellingPrice">Selling Price ($)</Label>
+            <Input
+              id="sellingPrice"
+              type="number"
+              min="0"
+              step="0.01"
+              value={formData.sellingPrice}
+              onChange={(e) => setFormData({ ...formData, sellingPrice: parseFloat(e.target.value) || 0 })}
+              required
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
