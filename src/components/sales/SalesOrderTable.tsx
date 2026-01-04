@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { SalesOrder, StockMovement, Product, calculateWeightedAverageCost } from '@/types/inventory';
-import { mockSalesOrders as initialOrders, mockProducts, mockStockMovements } from '@/data/mockData';
+import { SalesOrder, SalesOrderStatus, StockMovement, Product, Customer } from '@/types/inventory';
+import { mockSalesOrders as initialOrders, mockProducts, mockStockMovements, mockCustomers } from '@/data/mockData';
 import {
   Table,
   TableBody,
@@ -25,6 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import {
   DropdownMenu,
@@ -33,15 +34,25 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { Eye, Search, Plus, FileText, MoreHorizontal, CheckCircle, XCircle, TrendingUp, TrendingDown } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Eye, Search, Plus, FileText, MoreHorizontal, CheckCircle, XCircle, TrendingUp, TrendingDown, DollarSign, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SalesOrderDialog } from './SalesOrderDialog';
 import { toast } from 'sonner';
 
-const statusStyles = {
+const statusStyles: Record<SalesOrderStatus, string> = {
   pending: 'bg-warning/10 text-warning border-warning/20',
+  received: 'bg-primary/10 text-primary border-primary/20',
+  partially_paid: 'bg-info/10 text-info border-info/20',
+  paid: 'bg-success/10 text-success border-success/20',
   completed: 'bg-success/10 text-success border-success/20',
   cancelled: 'bg-destructive/10 text-destructive border-destructive/20',
+};
+
+const paymentStatusStyles = {
+  unpaid: 'bg-destructive/10 text-destructive border-destructive/20',
+  partial: 'bg-warning/10 text-warning border-warning/20',
+  paid: 'bg-success/10 text-success border-success/20',
 };
 
 function OrderDetailsDialog({ order }: { order: SalesOrder }) {
@@ -60,17 +71,30 @@ function OrderDetailsDialog({ order }: { order: SalesOrder }) {
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <p className="text-sm text-muted-foreground">Customer</p>
               <p className="font-medium">{order.customerName}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Status</p>
+              <p className="text-sm text-muted-foreground">Order Status</p>
               <Badge variant="outline" className={cn("capitalize", statusStyles[order.status])}>
-                {order.status}
+                {order.status.replace('_', ' ')}
               </Badge>
             </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Payment Status</p>
+              <Badge variant="outline" className={cn("capitalize", paymentStatusStyles[order.paymentStatus])}>
+                {order.paymentStatus === 'partial' ? 'Partially Paid' : order.paymentStatus}
+              </Badge>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Paid Amount</p>
+              <p className="font-medium">${order.paidAmount.toFixed(2)} / ${order.totalRevenue.toFixed(2)}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-sm text-muted-foreground">Order Date</p>
               <p className="font-medium">{order.orderDate}</p>
@@ -154,9 +178,75 @@ function OrderDetailsDialog({ order }: { order: SalesOrder }) {
   );
 }
 
+function RecordPaymentDialog({ order, onRecordPayment }: { order: SalesOrder; onRecordPayment: (orderId: string, amount: number) => void }) {
+  const [open, setOpen] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const remaining = order.totalRevenue - order.paidAmount;
+
+  const handleSubmit = () => {
+    const amount = parseFloat(paymentAmount) || 0;
+    if (amount > 0 && amount <= remaining) {
+      onRecordPayment(order.id, amount);
+      setOpen(false);
+      setPaymentAmount('');
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+          <DollarSign className="w-4 h-4 mr-2" />
+          Record Payment
+        </DropdownMenuItem>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Record Payment - {order.orderNumber}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-muted-foreground">Total Amount</p>
+              <p className="font-medium">${order.totalRevenue.toFixed(2)}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Already Paid</p>
+              <p className="font-medium text-success">${order.paidAmount.toFixed(2)}</p>
+            </div>
+            <div className="col-span-2">
+              <p className="text-muted-foreground">Remaining</p>
+              <p className="font-bold text-lg">${remaining.toFixed(2)}</p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Payment Amount</Label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0.01"
+              max={remaining}
+              value={paymentAmount}
+              onChange={(e) => setPaymentAmount(e.target.value)}
+              placeholder={`Max: $${remaining.toFixed(2)}`}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={!paymentAmount || parseFloat(paymentAmount) <= 0 || parseFloat(paymentAmount) > remaining}>
+            Record Payment
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function SalesOrderTable() {
   const [orders, setOrders] = useState<SalesOrder[]>(initialOrders);
   const [products, setProducts] = useState<Product[]>(mockProducts);
+  const [customers] = useState<Customer[]>(mockCustomers);
   const [movements, setMovements] = useState<StockMovement[]>(mockStockMovements);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -180,6 +270,29 @@ export function SalesOrderTable() {
     toast.success(`Sales Order ${orderNumber} created`);
   };
 
+  const updateOrderStatus = (orderId: string, newStatus: SalesOrderStatus) => {
+    setOrders(orders.map(o =>
+      o.id === orderId ? { ...o, status: newStatus } : o
+    ));
+    toast.success(`Order status updated to ${newStatus.replace('_', ' ')}`);
+  };
+
+  const recordPayment = (orderId: string, amount: number) => {
+    setOrders(orders.map(o => {
+      if (o.id === orderId) {
+        const newPaidAmount = o.paidAmount + amount;
+        const newPaymentStatus = newPaidAmount >= o.totalRevenue ? 'paid' : 'partial';
+        return {
+          ...o,
+          paidAmount: newPaidAmount,
+          paymentStatus: newPaymentStatus as 'unpaid' | 'partial' | 'paid',
+        };
+      }
+      return o;
+    }));
+    toast.success(`Payment of $${amount.toFixed(2)} recorded`);
+  };
+
   const completeOrder = (orderId: string) => {
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
@@ -190,6 +303,7 @@ export function SalesOrderTable() {
       productId: item.productId,
       productName: item.productName,
       type: 'out' as const,
+      adjustmentReason: 'sale' as const,
       quantity: item.quantity,
       unit: item.unit,
       pcsPerUnit: item.pcsPerUnit,
@@ -255,6 +369,9 @@ export function SalesOrderTable() {
           <SelectContent className="bg-popover">
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="received">Received</SelectItem>
+            <SelectItem value="partially_paid">Partially Paid</SelectItem>
+            <SelectItem value="paid">Paid</SelectItem>
             <SelectItem value="completed">Completed</SelectItem>
             <SelectItem value="cancelled">Cancelled</SelectItem>
           </SelectContent>
@@ -274,9 +391,9 @@ export function SalesOrderTable() {
               <TableHead>Customer</TableHead>
               <TableHead>Date</TableHead>
               <TableHead className="text-right">Revenue</TableHead>
-              <TableHead className="text-right">Cost</TableHead>
               <TableHead className="text-right">Margin</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Payment</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -287,7 +404,6 @@ export function SalesOrderTable() {
                 <TableCell>{order.customerName}</TableCell>
                 <TableCell className="text-muted-foreground">{order.orderDate}</TableCell>
                 <TableCell className="text-right font-medium">${order.totalRevenue.toFixed(2)}</TableCell>
-                <TableCell className="text-right text-muted-foreground">${order.totalCost.toFixed(2)}</TableCell>
                 <TableCell className="text-right">
                   <span className={cn(
                     "font-semibold flex items-center justify-end gap-1",
@@ -300,7 +416,12 @@ export function SalesOrderTable() {
                 </TableCell>
                 <TableCell>
                   <Badge variant="outline" className={cn("capitalize", statusStyles[order.status])}>
-                    {order.status}
+                    {order.status.replace('_', ' ')}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline" className={cn("capitalize", paymentStatusStyles[order.paymentStatus])}>
+                    {order.paymentStatus === 'partial' ? `$${order.paidAmount.toFixed(0)}` : order.paymentStatus}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">
@@ -315,17 +436,37 @@ export function SalesOrderTable() {
                       <DropdownMenuContent align="end" className="bg-popover">
                         {order.status === 'pending' && (
                           <>
-                            <DropdownMenuItem onClick={() => completeOrder(order.id)}>
-                              <CheckCircle className="w-4 h-4 mr-2 text-success" />
-                              Complete & Ship
+                            <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'received')}>
+                              <Package className="w-4 h-4 mr-2" />
+                              Mark as Received
                             </DropdownMenuItem>
+                            <RecordPaymentDialog order={order} onRecordPayment={recordPayment} />
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => cancelOrder(order.id)}
-                              className="text-destructive"
-                            >
+                            <DropdownMenuItem onClick={() => cancelOrder(order.id)} className="text-destructive">
                               <XCircle className="w-4 h-4 mr-2" />
                               Cancel Order
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                        {order.status === 'received' && (
+                          <>
+                            <RecordPaymentDialog order={order} onRecordPayment={recordPayment} />
+                            {order.paymentStatus === 'paid' && (
+                              <DropdownMenuItem onClick={() => completeOrder(order.id)}>
+                                <CheckCircle className="w-4 h-4 mr-2 text-success" />
+                                Complete Order
+                              </DropdownMenuItem>
+                            )}
+                          </>
+                        )}
+                        {(order.status === 'partially_paid' || order.status === 'paid') && (
+                          <>
+                            {order.paymentStatus !== 'paid' && (
+                              <RecordPaymentDialog order={order} onRecordPayment={recordPayment} />
+                            )}
+                            <DropdownMenuItem onClick={() => completeOrder(order.id)}>
+                              <CheckCircle className="w-4 h-4 mr-2 text-success" />
+                              Complete Order
                             </DropdownMenuItem>
                           </>
                         )}
@@ -361,6 +502,7 @@ export function SalesOrderTable() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         products={products}
+        customers={customers}
         onSave={handleCreateOrder}
       />
     </div>

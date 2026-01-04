@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { StockMovement, Product } from '@/types/inventory';
+import { StockMovement, Product, ADJUSTMENT_REASONS } from '@/types/inventory';
 import { mockStockMovements as initialMovements, mockProducts } from '@/data/mockData';
 import {
   Table,
@@ -23,6 +23,10 @@ import { ArrowDownCircle, ArrowUpCircle, Search, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { StockMovementDialog } from './StockMovementDialog';
 import { toast } from 'sonner';
+
+const getReasonLabel = (reason: string) => {
+  return ADJUSTMENT_REASONS.find(r => r.type === reason)?.label || reason;
+};
 
 export function StockMovementTable() {
   const [movements, setMovements] = useState<StockMovement[]>(initialMovements);
@@ -98,6 +102,7 @@ export function StockMovementTable() {
             <TableRow className="bg-muted/50">
               <TableHead>Date</TableHead>
               <TableHead>Type</TableHead>
+              <TableHead>Reason</TableHead>
               <TableHead>Product</TableHead>
               <TableHead className="text-right">Quantity</TableHead>
               <TableHead>Unit</TableHead>
@@ -128,6 +133,11 @@ export function StockMovementTable() {
                     {movement.type === 'in' ? 'IN' : 'OUT'}
                   </Badge>
                 </TableCell>
+                <TableCell>
+                  <span className="text-xs text-muted-foreground">
+                    {getReasonLabel(movement.adjustmentReason)}
+                  </span>
+                </TableCell>
                 <TableCell className="font-medium">{movement.productName}</TableCell>
                 <TableCell className="text-right font-medium">{movement.quantity}</TableCell>
                 <TableCell className="text-muted-foreground capitalize">{movement.unit}</TableCell>
@@ -149,7 +159,7 @@ export function StockMovementTable() {
             ))}
             {filteredMovements.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                   No stock movements found
                 </TableCell>
               </TableRow>

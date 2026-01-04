@@ -63,18 +63,35 @@ export interface PurchaseOrderItem {
   costPerPc: number; // calculated cost per piece for this purchase
 }
 
+// Customer type
+export interface Customer {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  status: 'active' | 'inactive';
+}
+
+// Sales Order status types
+export type SalesOrderStatus = 'pending' | 'received' | 'partially_paid' | 'paid' | 'completed' | 'cancelled';
+
 // Sales Order types
 export interface SalesOrder {
   id: string;
   orderNumber: string;
-  customerName: string;
+  customerId?: string; // optional - linked to customer master
+  customerName: string; // can be entered directly without master
   items: SalesOrderItem[];
   totalRevenue: number;
   totalCost: number;
   totalMargin: number;
   marginPercentage: number;
-  status: 'pending' | 'completed' | 'cancelled';
+  status: SalesOrderStatus;
+  paymentStatus: 'unpaid' | 'partial' | 'paid';
+  paidAmount: number;
   orderDate: string;
+  deliveryDate?: string;
 }
 
 export interface SalesOrderItem {
@@ -91,6 +108,19 @@ export interface SalesOrderItem {
   margin: number;
 }
 
+// Stock movement adjustment types
+export type StockAdjustmentReason = 
+  | 'purchase' // from purchase order
+  | 'sale' // from sales order
+  | 'damage' // damaged goods
+  | 'expired' // expired products
+  | 'correction' // inventory correction
+  | 'initial' // initial stock
+  | 'return_in' // customer return
+  | 'return_out' // return to supplier
+  | 'transfer' // transfer between locations
+  | 'other';
+
 export type StockStatus = 'in-stock' | 'low-stock' | 'out-of-stock';
 
 export type StockMovementType = 'in' | 'out';
@@ -100,6 +130,7 @@ export interface StockMovement {
   productId: string;
   productName: string;
   type: StockMovementType;
+  adjustmentReason: StockAdjustmentReason; // reason for adjustment
   quantity: number;
   unit: UnitType;
   pcsPerUnit: number;
@@ -114,6 +145,20 @@ export interface StockMovement {
   date: string;
   createdBy: string;
 }
+
+// Adjustment reason labels
+export const ADJUSTMENT_REASONS: { type: StockAdjustmentReason; label: string; direction: 'in' | 'out' | 'both' }[] = [
+  { type: 'purchase', label: 'Purchase Order', direction: 'in' },
+  { type: 'sale', label: 'Sales Order', direction: 'out' },
+  { type: 'damage', label: 'Damaged Goods', direction: 'out' },
+  { type: 'expired', label: 'Expired Products', direction: 'out' },
+  { type: 'correction', label: 'Inventory Correction', direction: 'both' },
+  { type: 'initial', label: 'Initial Stock', direction: 'in' },
+  { type: 'return_in', label: 'Customer Return', direction: 'in' },
+  { type: 'return_out', label: 'Return to Supplier', direction: 'out' },
+  { type: 'transfer', label: 'Transfer', direction: 'both' },
+  { type: 'other', label: 'Other', direction: 'both' },
+];
 
 // Utility function to calculate weighted average cost
 export function calculateWeightedAverageCost(
