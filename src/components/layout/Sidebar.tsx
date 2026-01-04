@@ -86,7 +86,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+      <nav className="flex-1 p-3 space-y-1">
         {menuItems.map((item, index) => {
           if (item.type === 'separator') {
             if (collapsed) return null;
