@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { PurchaseOrder, PurchaseOrderItem } from '@/types/inventory';
+import { PurchaseOrder, PurchaseOrderItem, UnitType, UNIT_OPTIONS } from '@/types/inventory';
 import { mockProducts, mockSuppliers } from '@/data/mockData';
 import {
   Dialog,
@@ -40,7 +40,15 @@ export function PurchaseOrderDialog({ open, onOpenChange, onSave }: PurchaseOrde
   }, [open]);
 
   const addItem = () => {
-    setItems([...items, { productId: '', productName: '', quantity: 1, unitPrice: 0 }]);
+    setItems([...items, { 
+      productId: '', 
+      productName: '', 
+      quantity: 1, 
+      unit: 'pcs',
+      pcsPerUnit: 1,
+      unitPrice: 0,
+      totalPcs: 1
+    }]);
   };
 
   const removeItem = (index: number) => {
@@ -49,23 +57,51 @@ export function PurchaseOrderDialog({ open, onOpenChange, onSave }: PurchaseOrde
 
   const updateItem = (index: number, field: keyof PurchaseOrderItem, value: string | number) => {
     const newItems = [...items];
+    const currentItem = newItems[index];
+    
     if (field === 'productId') {
       const product = mockProducts.find(p => p.id === value);
       if (product) {
+        const pcsPerUnit = UNIT_OPTIONS.find(u => u.type === currentItem.unit)?.pcsPerUnit || 1;
         newItems[index] = {
-          ...newItems[index],
+          ...currentItem,
           productId: value as string,
           productName: product.name,
-          unitPrice: product.unitPrice,
+          unitPrice: product.unitPrice * pcsPerUnit, // Calculate price per selected unit
+          totalPcs: currentItem.quantity * pcsPerUnit,
         };
       }
-    } else {
-      newItems[index] = { ...newItems[index], [field]: value };
+    } else if (field === 'unit') {
+      const unitInfo = UNIT_OPTIONS.find(u => u.type === value);
+      const product = mockProducts.find(p => p.id === currentItem.productId);
+      if (unitInfo && product) {
+        newItems[index] = {
+          ...currentItem,
+          unit: value as UnitType,
+          pcsPerUnit: unitInfo.pcsPerUnit,
+          unitPrice: product.unitPrice * unitInfo.pcsPerUnit,
+          totalPcs: currentItem.quantity * unitInfo.pcsPerUnit,
+        };
+      }
+    } else if (field === 'quantity') {
+      const qty = typeof value === 'number' ? value : parseInt(value as string) || 1;
+      newItems[index] = {
+        ...currentItem,
+        quantity: qty,
+        totalPcs: qty * currentItem.pcsPerUnit,
+      };
+    } else if (field === 'unitPrice') {
+      newItems[index] = {
+        ...currentItem,
+        unitPrice: typeof value === 'number' ? value : parseFloat(value as string) || 0,
+      };
     }
+    
     setItems(newItems);
   };
 
   const totalAmount = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+  const totalPcs = items.reduce((sum, item) => sum + item.totalPcs, 0);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,7 +120,7 @@ export function PurchaseOrderDialog({ open, onOpenChange, onSave }: PurchaseOrde
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create Purchase Order</DialogTitle>
         </DialogHeader>
@@ -128,64 +164,106 @@ export function PurchaseOrderDialog({ open, onOpenChange, onSave }: PurchaseOrde
               </div>
             ) : (
               <div className="space-y-3">
-                {items.map((item, index) => (
-                  <div key={index} className="flex gap-3 items-end p-3 bg-muted/50 rounded-lg">
-                    <div className="flex-1 space-y-1">
-                      <Label className="text-xs">Product</Label>
-                      <Select
-                        value={item.productId}
-                        onValueChange={(value) => updateItem(index, 'productId', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select product" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-popover">
-                          {mockProducts.map((prod) => (
-                            <SelectItem key={prod.id} value={prod.id}>{prod.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                {items.map((item, index) => {
+                  const lineTotal = item.quantity * item.unitPrice;
+                  return (
+                    <div key={index} className="p-4 bg-muted/50 rounded-lg space-y-3">
+                      <div className="flex gap-3 items-end">
+                        <div className="flex-1 space-y-1">
+                          <Label className="text-xs">Product</Label>
+                          <Select
+                            value={item.productId}
+                            onValueChange={(value) => updateItem(index, 'productId', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select product" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-popover">
+                              {mockProducts.map((prod) => (
+                                <SelectItem key={prod.id} value={prod.id}>
+                                  {prod.name} (${prod.unitPrice.toFixed(2)}/pcs)
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive"
+                          onClick={() => removeItem(index)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      
+                      <div className="grid grid-cols-4 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Quantity</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Unit</Label>
+                          <Select
+                            value={item.unit}
+                            onValueChange={(value) => updateItem(index, 'unit', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-popover">
+                              {UNIT_OPTIONS.map((u) => (
+                                <SelectItem key={u.type} value={u.type}>
+                                  {u.label} ({u.pcsPerUnit} pcs)
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Price per {item.unit}</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={item.unitPrice}
+                            onChange={(e) => updateItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Line Total</Label>
+                          <div className="h-9 flex items-center px-3 bg-background rounded-md border font-medium">
+                            ${lineTotal.toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {item.productId && (
+                        <div className="text-xs text-muted-foreground flex gap-4">
+                          <span>Pieces per {item.unit}: <strong>{item.pcsPerUnit}</strong></span>
+                          <span>Total pieces: <strong>{item.totalPcs}</strong></span>
+                        </div>
+                      )}
                     </div>
-                    <div className="w-24 space-y-1">
-                      <Label className="text-xs">Quantity</Label>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={item.quantity}
-                        onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
-                      />
-                    </div>
-                    <div className="w-28 space-y-1">
-                      <Label className="text-xs">Unit Price</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={item.unitPrice}
-                        onChange={(e) => updateItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                      />
-                    </div>
-                    <div className="w-24 text-right">
-                      <p className="text-sm font-medium">${(item.quantity * item.unitPrice).toFixed(2)}</p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive"
-                      onClick={() => removeItem(index)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
             {items.length > 0 && (
-              <div className="flex justify-end pt-2 border-t">
+              <div className="flex justify-between items-center pt-4 border-t bg-muted/30 rounded-lg p-4">
+                <div className="text-sm text-muted-foreground">
+                  Total Items: <strong>{items.length}</strong> | 
+                  Total Pieces: <strong>{totalPcs.toLocaleString()}</strong>
+                </div>
                 <div className="text-right">
-                  <p className="text-sm text-muted-foreground">Total Amount</p>
-                  <p className="text-xl font-bold">${totalAmount.toFixed(2)}</p>
+                  <p className="text-sm text-muted-foreground">Grand Total</p>
+                  <p className="text-2xl font-bold">${totalAmount.toFixed(2)}</p>
                 </div>
               </div>
             )}

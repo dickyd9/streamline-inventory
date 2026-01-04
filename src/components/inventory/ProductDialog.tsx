@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Product } from '@/types/inventory';
+import { Product, UnitType, UNIT_OPTIONS } from '@/types/inventory';
 import {
   Dialog,
   DialogContent,
@@ -25,8 +25,8 @@ interface ProductDialogProps {
   onSave: (product: Omit<Product, 'id' | 'lastUpdated'>) => void;
 }
 
-const categories = ['Electronics', 'Furniture', 'Stationery', 'Office Supplies'];
-const suppliers = ['TechSupply Co.', 'Office Plus', 'LightWorld', 'Paper House'];
+const categories = ['Electronics', 'Furniture', 'Stationery', 'Office Supplies', 'Beverages'];
+const suppliers = ['TechSupply Co.', 'Office Plus', 'LightWorld', 'Paper House', 'Fresh Supplies'];
 
 export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDialogProps) {
   const [formData, setFormData] = useState({
@@ -36,6 +36,7 @@ export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDi
     quantity: 0,
     minStock: 0,
     unitPrice: 0,
+    unit: 'pcs' as UnitType,
     supplier: '',
   });
 
@@ -48,6 +49,7 @@ export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDi
         quantity: product.quantity,
         minStock: product.minStock,
         unitPrice: product.unitPrice,
+        unit: product.unit,
         supplier: product.supplier,
       });
     } else {
@@ -58,6 +60,7 @@ export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDi
         quantity: 0,
         minStock: 0,
         unitPrice: 0,
+        unit: 'pcs',
         supplier: '',
       });
     }
@@ -71,7 +74,7 @@ export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{product ? 'Edit Product' : 'Add New Product'}</DialogTitle>
         </DialogHeader>
@@ -132,28 +135,22 @@ export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDi
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="quantity">Quantity</Label>
-              <Input
-                id="quantity"
-                type="number"
-                min="0"
-                value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="minStock">Min Stock</Label>
-              <Input
-                id="minStock"
-                type="number"
-                min="0"
-                value={formData.minStock}
-                onChange={(e) => setFormData({ ...formData, minStock: parseInt(e.target.value) || 0 })}
-                required
-              />
+              <Label htmlFor="unit">Base Unit</Label>
+              <Select
+                value={formData.unit}
+                onValueChange={(value) => setFormData({ ...formData, unit: value as UnitType })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  {UNIT_OPTIONS.map((u) => (
+                    <SelectItem key={u.type} value={u.type}>{u.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="unitPrice">Unit Price ($)</Label>
@@ -164,6 +161,31 @@ export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDi
                 step="0.01"
                 value={formData.unitPrice}
                 onChange={(e) => setFormData({ ...formData, unitPrice: parseFloat(e.target.value) || 0 })}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="quantity">Current Stock</Label>
+              <Input
+                id="quantity"
+                type="number"
+                min="0"
+                value={formData.quantity}
+                onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="minStock">Min Stock Level</Label>
+              <Input
+                id="minStock"
+                type="number"
+                min="0"
+                value={formData.minStock}
+                onChange={(e) => setFormData({ ...formData, minStock: parseInt(e.target.value) || 0 })}
                 required
               />
             </div>
