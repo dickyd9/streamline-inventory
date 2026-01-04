@@ -12,33 +12,49 @@ import {
   ShoppingBag,
   UserCircle,
   Boxes,
-  ClipboardList
+  ClipboardList,
+  ClipboardCheck,
+  FileText,
+  UsersRound
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
-import { Separator } from '@/components/ui/separator';
-
-const menuItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-  { type: 'separator', label: 'Catalog' },
-  { icon: ClipboardList, label: 'Items', path: '/items' },
-  { type: 'separator', label: 'Stock Management' },
-  { icon: Boxes, label: 'Inventory', path: '/inventory' },
-  { icon: ArrowLeftRight, label: 'Stock Movements', path: '/stock-movements' },
-  { type: 'separator', label: 'Orders' },
-  { icon: ShoppingCart, label: 'Purchase Orders', path: '/purchases' },
-  { icon: ShoppingBag, label: 'Sales Orders', path: '/sales' },
-  { type: 'separator', label: 'Directory' },
-  { icon: Users, label: 'Suppliers', path: '/suppliers' },
-  { icon: UserCircle, label: 'Customers', path: '/customers' },
-  { type: 'separator', label: 'Analytics' },
-  { icon: BarChart3, label: 'Reports', path: '/reports' },
-];
+import { useLanguage } from '@/contexts/LanguageContext';
+import { usePermissions } from '@/hooks/usePermissions';
 
 export function Sidebar() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const { t } = useLanguage();
+  const { isOwnerOrAdmin } = usePermissions();
+
+  const menuItems = [
+    { icon: LayoutDashboard, label: t('nav.dashboard'), path: '/' },
+    { type: 'separator', label: t('nav.catalog') },
+    { icon: ClipboardList, label: t('nav.items'), path: '/items' },
+    { type: 'separator', label: t('nav.stockManagement') },
+    { icon: Boxes, label: t('nav.inventory'), path: '/inventory' },
+    { icon: ArrowLeftRight, label: t('nav.stockMovements'), path: '/stock-movements' },
+    { icon: ClipboardCheck, label: t('nav.stocktaking'), path: '/stocktaking' },
+    { type: 'separator', label: t('nav.orders') },
+    { icon: ShoppingCart, label: t('nav.purchaseOrders'), path: '/purchases' },
+    { icon: ShoppingBag, label: t('nav.salesOrders'), path: '/sales' },
+    { icon: FileText, label: t('nav.invoices'), path: '/invoices' },
+    { type: 'separator', label: t('nav.directory') },
+    { icon: Users, label: t('nav.suppliers'), path: '/suppliers' },
+    { icon: UserCircle, label: t('nav.customers'), path: '/customers' },
+    { type: 'separator', label: t('nav.analytics') },
+    { icon: BarChart3, label: t('nav.reports'), path: '/reports' },
+  ];
+
+  // Add user management for owners/admins
+  if (isOwnerOrAdmin) {
+    menuItems.push(
+      { type: 'separator', label: t('nav.userManagement') },
+      { icon: UsersRound, label: t('nav.userManagement'), path: '/users' }
+    );
+  }
 
   return (
     <aside 
@@ -116,7 +132,7 @@ export function Sidebar() {
           )}
         >
           <Settings className="w-5 h-5 flex-shrink-0" />
-          {!collapsed && <span className="font-medium">Settings</span>}
+          {!collapsed && <span className="font-medium">{t('nav.settings')}</span>}
         </Link>
       </div>
     </aside>
