@@ -15,7 +15,8 @@ import {
   ClipboardList,
   ClipboardCheck,
   FileText,
-  UsersRound
+  UsersRound,
+  History
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -26,7 +27,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 export function Sidebar() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { isOwnerOrAdmin } = usePermissions();
 
   const menuItems = [
@@ -48,11 +49,12 @@ export function Sidebar() {
     { icon: BarChart3, label: t('nav.reports'), path: '/reports' },
   ];
 
-  // Add user management for owners/admins
+  // Add user management and activity history for owners/admins
   if (isOwnerOrAdmin) {
     menuItems.push(
       { type: 'separator', label: t('nav.userManagement') },
-      { icon: UsersRound, label: t('nav.userManagement'), path: '/users' }
+      { icon: UsersRound, label: t('nav.userManagement'), path: '/users' },
+      { icon: History, label: language === 'id' ? 'Riwayat Aktivitas' : 'Activity History', path: '/activity' }
     );
   }
 

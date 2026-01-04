@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/select';
 import { ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface StockMovementDialogProps {
   open: boolean;
@@ -29,6 +30,7 @@ interface StockMovementDialogProps {
 }
 
 export function StockMovementDialog({ open, onOpenChange, products, onSave }: StockMovementDialogProps) {
+  const { formatCurrency, language } = useLanguage();
   const [movementType, setMovementType] = useState<StockMovementType>('in');
   const [adjustmentReason, setAdjustmentReason] = useState<StockAdjustmentReason>('correction');
   const [productId, setProductId] = useState('');
@@ -100,12 +102,12 @@ export function StockMovementDialog({ open, onOpenChange, products, onSave }: St
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Record Stock Movement</DialogTitle>
+          <DialogTitle>{language === 'id' ? 'Catat Pergerakan Stok' : 'Record Stock Movement'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Movement Type */}
           <div className="space-y-2">
-            <Label>Movement Type</Label>
+            <Label>{language === 'id' ? 'Tipe Pergerakan' : 'Movement Type'}</Label>
             <div className="flex gap-2">
               <Button
                 type="button"
@@ -117,7 +119,7 @@ export function StockMovementDialog({ open, onOpenChange, products, onSave }: St
                 onClick={() => setMovementType('in')}
               >
                 <ArrowDownCircle className="w-4 h-4" />
-                Stock In
+                {language === 'id' ? 'Stok Masuk' : 'Stock In'}
               </Button>
               <Button
                 type="button"
@@ -129,17 +131,17 @@ export function StockMovementDialog({ open, onOpenChange, products, onSave }: St
                 onClick={() => setMovementType('out')}
               >
                 <ArrowUpCircle className="w-4 h-4" />
-                Stock Out
+                {language === 'id' ? 'Stok Keluar' : 'Stock Out'}
               </Button>
             </div>
           </div>
 
           {/* Adjustment Reason */}
           <div className="space-y-2">
-            <Label>Reason</Label>
+            <Label>{language === 'id' ? 'Alasan' : 'Reason'}</Label>
             <Select value={adjustmentReason} onValueChange={(v) => setAdjustmentReason(v as StockAdjustmentReason)}>
               <SelectTrigger>
-                <SelectValue placeholder="Select reason" />
+                <SelectValue placeholder={language === 'id' ? 'Pilih alasan' : 'Select reason'} />
               </SelectTrigger>
               <SelectContent className="bg-popover">
                 {availableReasons.map((reason) => (
@@ -153,15 +155,15 @@ export function StockMovementDialog({ open, onOpenChange, products, onSave }: St
 
           {/* Product Selection */}
           <div className="space-y-2">
-            <Label>Product</Label>
+            <Label>{language === 'id' ? 'Produk' : 'Product'}</Label>
             <Select value={productId} onValueChange={setProductId}>
               <SelectTrigger>
-                <SelectValue placeholder="Select product" />
+                <SelectValue placeholder={language === 'id' ? 'Pilih produk' : 'Select product'} />
               </SelectTrigger>
               <SelectContent className="bg-popover">
                 {products.map((prod) => (
                   <SelectItem key={prod.id} value={prod.id}>
-                    {prod.name} (SKU: {prod.sku}) - Stock: {prod.quantity}
+                    {prod.name} (SKU: {prod.sku}) - {language === 'id' ? 'Stok' : 'Stock'}: {prod.quantity}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -171,7 +173,7 @@ export function StockMovementDialog({ open, onOpenChange, products, onSave }: St
           {/* Quantity and Unit */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Quantity</Label>
+              <Label>{language === 'id' ? 'Jumlah' : 'Quantity'}</Label>
               <Input
                 type="number"
                 min="1"
@@ -181,7 +183,7 @@ export function StockMovementDialog({ open, onOpenChange, products, onSave }: St
               />
             </div>
             <div className="space-y-2">
-              <Label>Unit</Label>
+              <Label>{language === 'id' ? 'Satuan' : 'Unit'}</Label>
               <Select value={unit} onValueChange={(v) => setUnit(v as UnitType)}>
                 <SelectTrigger>
                   <SelectValue />
@@ -200,14 +202,14 @@ export function StockMovementDialog({ open, onOpenChange, products, onSave }: St
           {/* Cost per piece override for stock in */}
           {movementType === 'in' && selectedProduct && (
             <div className="space-y-2">
-              <Label>Cost per piece (optional override)</Label>
+              <Label>{language === 'id' ? 'Harga per pcs (opsional)' : 'Cost per piece (optional override)'}</Label>
               <Input
                 type="number"
                 step="0.01"
                 min="0"
                 value={customCostPerPc ?? ''}
                 onChange={(e) => setCustomCostPerPc(e.target.value ? parseFloat(e.target.value) : null)}
-                placeholder={`Default: $${selectedProduct.costPrice.toFixed(2)}`}
+                placeholder={`Default: ${formatCurrency(selectedProduct.costPrice)}`}
               />
             </div>
           )}
@@ -216,32 +218,32 @@ export function StockMovementDialog({ open, onOpenChange, products, onSave }: St
           {selectedProduct && (
             <div className="bg-muted/50 rounded-lg p-4 space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Pieces per unit:</span>
+                <span className="text-muted-foreground">{language === 'id' ? 'Pcs per satuan:' : 'Pieces per unit:'}</span>
                 <span className="font-medium">{selectedUnit?.pcsPerUnit || 1}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Total pieces:</span>
+                <span className="text-muted-foreground">{language === 'id' ? 'Total pcs:' : 'Total pieces:'}</span>
                 <span className="font-medium">{totalPcs} pcs</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Cost price (per pc):</span>
-                <span className="font-medium">${costPerPc.toFixed(2)}</span>
+                <span className="text-muted-foreground">{language === 'id' ? 'Harga per pcs:' : 'Cost price (per pc):'}</span>
+                <span className="font-medium">{formatCurrency(costPerPc)}</span>
               </div>
               <div className="flex justify-between pt-2 border-t">
-                <span className="font-medium">Total Value:</span>
-                <span className="font-bold text-lg">${totalValue.toFixed(2)}</span>
+                <span className="font-medium">{language === 'id' ? 'Total Nilai:' : 'Total Value:'}</span>
+                <span className="font-bold text-lg">{formatCurrency(totalValue)}</span>
               </div>
               {movementType === 'out' && (
                 <div className="flex justify-between text-sm text-success">
-                  <span>Selling revenue:</span>
-                  <span className="font-medium">${(totalPcs * selectedProduct.sellingPrice).toFixed(2)}</span>
+                  <span>{language === 'id' ? 'Pendapatan penjualan:' : 'Selling revenue:'}</span>
+                  <span className="font-medium">{formatCurrency(totalPcs * selectedProduct.sellingPrice)}</span>
                 </div>
               )}
               <div className={cn(
                 "flex justify-between text-sm pt-2",
                 movementType === 'in' ? "text-success" : "text-destructive"
               )}>
-                <span>New stock after {movementType === 'in' ? 'receiving' : 'issue'}:</span>
+                <span>{language === 'id' ? `Stok baru setelah ${movementType === 'in' ? 'masuk' : 'keluar'}:` : `New stock after ${movementType === 'in' ? 'receiving' : 'issue'}:`}</span>
                 <span className="font-medium">
                   {movementType === 'in' 
                     ? selectedProduct.quantity + totalPcs 
@@ -254,29 +256,29 @@ export function StockMovementDialog({ open, onOpenChange, products, onSave }: St
 
           {/* Reference */}
           <div className="space-y-2">
-            <Label>Reference (PO#, SO#, or ID)</Label>
+            <Label>{language === 'id' ? 'Referensi (No. PO, SO, atau ID)' : 'Reference (PO#, SO#, or ID)'}</Label>
             <Input
               value={reference}
               onChange={(e) => setReference(e.target.value)}
-              placeholder="e.g., PO-2026-001, ADJ-001"
+              placeholder={language === 'id' ? 'cth: PO-2026-001, ADJ-001' : 'e.g., PO-2026-001, ADJ-001'}
               required
             />
           </div>
 
           {/* Notes */}
           <div className="space-y-2">
-            <Label>Notes</Label>
+            <Label>{language === 'id' ? 'Catatan' : 'Notes'}</Label>
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Additional notes..."
+              placeholder={language === 'id' ? 'Catatan tambahan...' : 'Additional notes...'}
               rows={2}
             />
           </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {language === 'id' ? 'Batal' : 'Cancel'}
             </Button>
             <Button 
               type="submit" 
@@ -285,7 +287,9 @@ export function StockMovementDialog({ open, onOpenChange, products, onSave }: St
                 movementType === 'in' ? "bg-success hover:bg-success/90" : "bg-destructive hover:bg-destructive/90"
               )}
             >
-              {movementType === 'in' ? 'Record Stock In' : 'Record Stock Out'}
+              {movementType === 'in' 
+                ? (language === 'id' ? 'Catat Stok Masuk' : 'Record Stock In') 
+                : (language === 'id' ? 'Catat Stok Keluar' : 'Record Stock Out')}
             </Button>
           </DialogFooter>
         </form>

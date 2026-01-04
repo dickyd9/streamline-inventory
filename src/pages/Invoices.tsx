@@ -43,6 +43,7 @@ import {
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { InvoicePrintView } from '@/components/invoices/InvoicePrintView';
 
 // Mock data
 const mockInvoices = [
@@ -434,105 +435,20 @@ export default function Invoices() {
 
       {/* Invoice Preview Modal */}
       <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto p-0">
+          <DialogHeader className="p-4 pb-0">
             <DialogTitle className="flex items-center justify-between">
               <span>{language === 'id' ? 'Preview Faktur' : 'Invoice Preview'}</span>
             </DialogTitle>
           </DialogHeader>
           
           {selectedInvoice && (
-            <div className="space-y-6 p-4 bg-white rounded-lg border">
-              {/* Invoice Header */}
-              <div className="flex justify-between items-start">
-                <div>
-                  <h2 className="text-2xl font-bold text-foreground">FAKTUR / INVOICE</h2>
-                  <p className="text-lg font-semibold text-primary">{selectedInvoice.invoice_number}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold">PT. Nama Perusahaan</p>
-                  <p className="text-sm text-muted-foreground">Jl. Contoh No. 123</p>
-                  <p className="text-sm text-muted-foreground">Jakarta 12345</p>
-                </div>
-              </div>
-
-              {/* Customer/Supplier Info */}
-              <div className="grid grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedInvoice.type === 'sales' 
-                      ? (language === 'id' ? 'Kepada:' : 'Bill To:')
-                      : (language === 'id' ? 'Dari:' : 'From:')}
-                  </p>
-                  <p className="font-semibold">{selectedInvoice.customer_supplier_name}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-muted-foreground">{language === 'id' ? 'Tanggal:' : 'Date:'}</p>
-                  <p>{formatDate(selectedInvoice.invoice_date)}</p>
-                  <p className="text-sm text-muted-foreground mt-2">{language === 'id' ? 'Jatuh Tempo:' : 'Due Date:'}</p>
-                  <p>{formatDate(selectedInvoice.due_date)}</p>
-                </div>
-              </div>
-
-              {/* Items Table */}
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{language === 'id' ? 'Item' : 'Item'}</TableHead>
-                    <TableHead className="text-right">{language === 'id' ? 'Qty' : 'Qty'}</TableHead>
-                    <TableHead className="text-right">{language === 'id' ? 'Harga' : 'Price'}</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {selectedInvoice.items?.map((item: any, idx: number) => (
-                    <TableRow key={idx}>
-                      <TableCell>{item.name}</TableCell>
-                      <TableCell className="text-right">{item.qty}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(item.price)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(item.total)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-
-              {/* Summary */}
-              <div className="space-y-2 border-t pt-4">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Subtotal:</span>
-                  <span>{formatCurrency(selectedInvoice.subtotal)}</span>
-                </div>
-                {selectedInvoice.discount_amount > 0 && (
-                  <div className="flex justify-between text-destructive">
-                    <span>{language === 'id' ? 'Diskon:' : 'Discount:'}</span>
-                    <span>-{formatCurrency(selectedInvoice.discount_amount)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">PPN (11%):</span>
-                  <span>{formatCurrency(selectedInvoice.tax_amount)}</span>
-                </div>
-                <div className="flex justify-between text-lg font-bold border-t pt-2">
-                  <span>Total:</span>
-                  <span>{formatCurrency(selectedInvoice.total_amount)}</span>
-                </div>
-                {selectedInvoice.paid_amount > 0 && (
-                  <>
-                    <div className="flex justify-between text-success">
-                      <span>{language === 'id' ? 'Sudah Dibayar:' : 'Paid:'}</span>
-                      <span>{formatCurrency(selectedInvoice.paid_amount)}</span>
-                    </div>
-                    <div className="flex justify-between font-semibold">
-                      <span>{language === 'id' ? 'Sisa:' : 'Remaining:'}</span>
-                      <span>{formatCurrency(selectedInvoice.total_amount - selectedInvoice.paid_amount)}</span>
-                    </div>
-                  </>
-                )}
-              </div>
+            <div className="print-content">
+              <InvoicePrintView invoice={selectedInvoice} />
             </div>
           )}
 
-          <DialogFooter className="flex-col sm:flex-row gap-2">
+          <DialogFooter className="flex-col sm:flex-row gap-2 p-4 pt-0">
             <Button variant="outline" onClick={() => setPreviewDialogOpen(false)}>
               <X className="w-4 h-4 mr-2" />
               {language === 'id' ? 'Tutup' : 'Close'}
