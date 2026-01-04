@@ -39,6 +39,9 @@ import { Eye, Search, Plus, FileText, MoreHorizontal, CheckCircle, XCircle, Tren
 import { cn } from '@/lib/utils';
 import { SalesOrderDialog } from './SalesOrderDialog';
 import { toast } from 'sonner';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { usePermissions } from '@/hooks/usePermissions';
+import { useActivityLog } from '@/hooks/useActivityLog';
 
 const statusStyles: Record<SalesOrderStatus, string> = {
   pending: 'bg-warning/10 text-warning border-warning/20',
@@ -245,6 +248,9 @@ function RecordPaymentDialog({ order, onRecordPayment }: { order: SalesOrder; on
 
 export function SalesOrderTable() {
   const [orders, setOrders] = useState<SalesOrder[]>(initialOrders);
+  const { language, formatCurrency } = useLanguage();
+  const { canApprove } = usePermissions();
+  const { logActivity } = useActivityLog();
   const [products, setProducts] = useState<Product[]>(mockProducts);
   const [customers] = useState<Customer[]>(mockCustomers);
   const [movements, setMovements] = useState<StockMovement[]>(mockStockMovements);
@@ -267,21 +273,40 @@ export function SalesOrderTable() {
       orderNumber,
     };
     setOrders([newOrder, ...orders]);
-    toast.success(`Sales Order ${orderNumber} created`);
+    logActivity({
+      action: 'create',
+      entityType: 'sales_order',
+      entityId: newOrder.id,
+      entityName: orderNumber,
+      details: { customer: orderData.customerName, totalRevenue: orderData.totalRevenue },
+    });
+    toast.success(language === 'id' ? `Pesanan ${orderNumber} berhasil dibuat` : `Sales Order ${orderNumber} created`);
   };
 
   const updateOrderStatus = (orderId: string, newStatus: SalesOrderStatus) => {
+    const order = orders.find(o => o.id === orderId);
     setOrders(orders.map(o =>
       o.id === orderId ? { ...o, status: newStatus } : o
     ));
-    toast.success(`Order status updated to ${newStatus.replace('_', ' ')}`);
+    logActivity({
+      action: newStatus === 'cancelled' ? 'cancel' : 'update',
+      entityType: 'sales_order',
+      entityId: orderId,
+      entityName: order?.orderNumber,
+      details: { newStatus },
+    });
+    toast.success(language === 'id' ? `Status pesanan diperbarui ke ${newStatus}` : `Order status updated to ${newStatus.replace('_', ' ')}`);
   };
 
   const recordPayment = (orderId: string, amount: number) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+    
+    const newPaidAmount = order.paidAmount + amount;
+    const newPaymentStatus = newPaidAmount >= order.totalRevenue ? 'paid' : 'partial';
+    
     setOrders(orders.map(o => {
       if (o.id === orderId) {
-        const newPaidAmount = o.paidAmount + amount;
-        const newPaymentStatus = newPaidAmount >= o.totalRevenue ? 'paid' : 'partial';
         return {
           ...o,
           paidAmount: newPaidAmount,
@@ -290,7 +315,16 @@ export function SalesOrderTable() {
       }
       return o;
     }));
-    toast.success(`Payment of $${amount.toFixed(2)} recorded`);
+    
+    logActivity({
+      action: 'payment',
+      entityType: 'sales_order',
+      entityId: orderId,
+      entityName: order.orderNumber,
+      details: { amount, newPaidAmount, paymentStatus: newPaymentStatus },
+    });
+    
+    toast.success(language === 'id' ? `Pembayaran ${formatCurrency(amount)} dicatat` : `Payment of ${formatCurrency(amount)} recorded`);
   };
 
   const completeOrder = (orderId: string) => {

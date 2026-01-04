@@ -292,10 +292,11 @@ export function SalesOrderDialog({ open, onOpenChange, products, customers, onSa
 
             {items.map((item, index) => {
               const details = calculateItemDetails(item);
+              const product = products.find(p => p.id === item.productId);
               return (
                 <div key={index} className="bg-muted/50 rounded-lg p-3 sm:p-4 space-y-3">
                   <div className="flex items-start gap-2">
-                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-4 gap-2">
                       <Select
                         value={item.productId}
                         onValueChange={(v) => updateItem(index, 'productId', v)}
@@ -335,6 +336,24 @@ export function SalesOrderDialog({ open, onOpenChange, products, customers, onSa
                           ))}
                         </SelectContent>
                       </Select>
+
+                      {/* Custom price input */}
+                      <div className="space-y-1">
+                        <Input
+                          type="number"
+                          min="0"
+                          step="100"
+                          value={item.customPrice ?? ''}
+                          onChange={(e) => updateItem(index, 'customPrice', e.target.value ? parseFloat(e.target.value) : '')}
+                          placeholder={product ? formatCurrency(product.sellingPrice * (UNIT_OPTIONS.find(u => u.type === item.unit)?.pcsPerUnit || 1)) : (language === 'id' ? 'Harga' : 'Price')}
+                          className="text-sm"
+                        />
+                        {product && (
+                          <p className="text-xs text-muted-foreground">
+                            {language === 'id' ? 'Rekomendasi:' : 'Suggested:'} {formatCurrency(product.sellingPrice * (UNIT_OPTIONS.find(u => u.type === item.unit)?.pcsPerUnit || 1))}/{item.unit}
+                          </p>
+                        )}
+                      </div>
                     </div>
                     {items.length > 1 && (
                       <Button
