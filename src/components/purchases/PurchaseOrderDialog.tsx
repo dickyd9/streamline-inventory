@@ -93,14 +93,14 @@ export function PurchaseOrderDialog({ open, onOpenChange, onSave }: PurchaseOrde
     setItems(items.filter((_, i) => i !== index));
   };
 
-  const updateItem = (index: number, field: keyof PurchaseOrderItem, value: string | number) => {
+  const updateItem = (index: number, field: keyof PurchaseOrderItem | 'customPcsPerUnit', value: string | number) => {
     const newItems = [...items];
     const currentItem = newItems[index];
     
     if (field === 'productId') {
       const product = mockProducts.find(p => p.id === value);
       if (product) {
-        const pcsPerUnit = UNIT_OPTIONS.find(u => u.type === currentItem.unit)?.pcsPerUnit || 1;
+        const pcsPerUnit = currentItem.pcsPerUnit || 1;
         const unitPrice = product.costPrice * pcsPerUnit;
         newItems[index] = {
           ...currentItem,
@@ -115,14 +115,34 @@ export function PurchaseOrderDialog({ open, onOpenChange, onSave }: PurchaseOrde
       const unitInfo = UNIT_OPTIONS.find(u => u.type === value);
       const product = mockProducts.find(p => p.id === currentItem.productId);
       if (unitInfo && product) {
-        const unitPrice = product.costPrice * unitInfo.pcsPerUnit;
+        // Set default pcsPerUnit from unit option, but allow custom override
         newItems[index] = {
           ...currentItem,
           unit: value as UnitType,
           pcsPerUnit: unitInfo.pcsPerUnit,
-          unitPrice,
+          unitPrice: product.costPrice * unitInfo.pcsPerUnit,
           totalPcs: currentItem.quantity * unitInfo.pcsPerUnit,
           costPerPc: product.costPrice,
+        };
+      }
+    } else if (field === 'customPcsPerUnit') {
+      // Allow custom pcs per unit input
+      const customPcs = typeof value === 'number' ? value : parseInt(value as string) || 1;
+      const product = mockProducts.find(p => p.id === currentItem.productId);
+      if (product) {
+        newItems[index] = {
+          ...currentItem,
+          pcsPerUnit: customPcs,
+          unitPrice: product.costPrice * customPcs,
+          totalPcs: currentItem.quantity * customPcs,
+          costPerPc: product.costPrice,
+        };
+      } else {
+        newItems[index] = {
+          ...currentItem,
+          pcsPerUnit: customPcs,
+          totalPcs: currentItem.quantity * customPcs,
+          costPerPc: currentItem.unitPrice / customPcs,
         };
       }
     } else if (field === 'quantity') {
@@ -299,7 +319,7 @@ export function PurchaseOrderDialog({ open, onOpenChange, onSave }: PurchaseOrde
                         </Button>
                       </div>
                       
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                         <div className="space-y-1">
                           <Label className="text-xs">{language === 'id' ? 'Jumlah' : 'Quantity'}</Label>
                           <Input
@@ -321,14 +341,24 @@ export function PurchaseOrderDialog({ open, onOpenChange, onSave }: PurchaseOrde
                             <SelectContent className="bg-popover">
                               {UNIT_OPTIONS.map((u) => (
                                 <SelectItem key={u.type} value={u.type}>
-                                  {u.label} ({u.pcsPerUnit} pcs)
+                                  {u.label}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-xs">{language === 'id' ? `Harga per ${item.unit}` : `Price per ${item.unit}`}</Label>
+                          <Label className="text-xs">{language === 'id' ? 'Pcs/Unit' : 'Pcs/Unit'}</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={item.pcsPerUnit}
+                            onChange={(e) => updateItem(index, 'customPcsPerUnit', parseInt(e.target.value) || 1)}
+                            placeholder="e.g. 12"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">{language === 'id' ? `Harga/${item.unit}` : `Price/${item.unit}`}</Label>
                           <Input
                             type="number"
                             step="100"
@@ -337,20 +367,19 @@ export function PurchaseOrderDialog({ open, onOpenChange, onSave }: PurchaseOrde
                           />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-xs">{language === 'id' ? 'Total Baris' : 'Line Total'}</Label>
+                          <Label className="text-xs">{language === 'id' ? 'Subtotal' : 'Subtotal'}</Label>
                           <div className="h-9 flex items-center px-3 bg-background rounded-md border font-medium text-sm">
                             {formatCurrency(lineTotal)}
                           </div>
                         </div>
                       </div>
                       
-                      {item.productId && (
-                        <div className="text-xs text-muted-foreground flex flex-wrap gap-4">
-                          <span>Pcs/{item.unit}: <strong>{item.pcsPerUnit}</strong></span>
-                          <span>Total pcs: <strong>{item.totalPcs}</strong></span>
+                      <div className="text-xs text-muted-foreground flex flex-wrap gap-4 pt-1">
+                        <span>Total pcs: <strong>{item.totalPcs}</strong></span>
+                        {item.costPerPc > 0 && (
                           <span>{language === 'id' ? 'Biaya/pcs:' : 'Cost/pc:'} <strong>{formatCurrency(item.costPerPc)}</strong></span>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   );
                 })}
