@@ -3,19 +3,27 @@ import { StatCard } from '@/components/dashboard/StatCard';
 import { RecentOrders } from '@/components/dashboard/RecentOrders';
 import { LowStockAlert } from '@/components/dashboard/LowStockAlert';
 import { InventoryChart } from '@/components/dashboard/InventoryChart';
-import { mockProducts, mockPurchaseOrders, mockSuppliers } from '@/data/mockData';
-import { Package, ShoppingCart, AlertTriangle, DollarSign } from 'lucide-react';
+import { TopSellingProducts } from '@/components/dashboard/TopSellingProducts';
+import { BusinessInsights } from '@/components/dashboard/BusinessInsights';
+import { mockProducts, mockPurchaseOrders, mockSuppliers, mockSalesOrders } from '@/data/mockData';
+import { Package, ShoppingCart, AlertTriangle, DollarSign, TrendingUp } from 'lucide-react';
 
 const Dashboard = () => {
   const totalProducts = mockProducts.length;
   const lowStockCount = mockProducts.filter(p => p.quantity <= p.minStock).length;
   const pendingOrders = mockPurchaseOrders.filter(o => o.status === 'pending').length;
   const totalInventoryValue = mockProducts.reduce((acc, p) => acc + (p.quantity * p.costPrice), 0);
+  
+  // Sales metrics
+  const completedSales = mockSalesOrders.filter(o => o.status === 'completed');
+  const totalRevenue = completedSales.reduce((acc, o) => acc + o.totalRevenue, 0);
+  const totalMargin = completedSales.reduce((acc, o) => acc + o.totalMargin, 0);
+  const pendingSalesOrders = mockSalesOrders.filter(o => o.status === 'pending').length;
 
   return (
     <MainLayout title="Dashboard">
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         <StatCard
           title="Total Products"
           value={totalProducts}
@@ -27,15 +35,22 @@ const Dashboard = () => {
         <StatCard
           title="Inventory Value"
           value={`$${totalInventoryValue.toLocaleString()}`}
-          subtitle="Across all categories"
+          subtitle="At cost price"
           icon={DollarSign}
+          variant="default"
+        />
+        <StatCard
+          title="Total Revenue"
+          value={`$${totalRevenue.toLocaleString()}`}
+          subtitle={`${completedSales.length} orders`}
+          icon={TrendingUp}
           variant="success"
-          trend={{ value: 8, isPositive: true }}
+          trend={{ value: 15, isPositive: true }}
         />
         <StatCard
           title="Pending Orders"
-          value={pendingOrders}
-          subtitle={`${mockPurchaseOrders.length} total orders`}
+          value={pendingOrders + pendingSalesOrders}
+          subtitle={`${pendingOrders} PO, ${pendingSalesOrders} SO`}
           icon={ShoppingCart}
           variant="warning"
         />
@@ -48,19 +63,27 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* Charts and Lists */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Top row - Charts and insights */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <div className="lg:col-span-2">
           <InventoryChart />
         </div>
         <div>
-          <LowStockAlert />
+          <BusinessInsights />
         </div>
       </div>
 
-      {/* Recent Orders */}
-      <div className="mt-6">
-        <RecentOrders />
+      {/* Bottom row - Lists */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div>
+          <TopSellingProducts />
+        </div>
+        <div>
+          <LowStockAlert />
+        </div>
+        <div>
+          <RecentOrders />
+        </div>
       </div>
     </MainLayout>
   );

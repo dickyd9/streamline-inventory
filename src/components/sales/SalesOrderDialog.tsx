@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { SalesOrder, SalesOrderItem, UnitType, UNIT_OPTIONS, Product } from '@/types/inventory';
+import { SalesOrder, SalesOrderItem, UnitType, UNIT_OPTIONS, Product, Customer } from '@/types/inventory';
 import {
   Dialog,
   DialogContent,
@@ -17,13 +17,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Trash2, TrendingUp, TrendingDown } from 'lucide-react';
+import { Plus, Trash2, TrendingUp, TrendingDown, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface SalesOrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   products: Product[];
+  customers: Customer[];
   onSave: (order: Omit<SalesOrder, 'id' | 'orderNumber'>) => void;
 }
 
@@ -34,12 +35,16 @@ interface ItemInput {
   customPrice?: number; // optional override for selling price
 }
 
-export function SalesOrderDialog({ open, onOpenChange, products, onSave }: SalesOrderDialogProps) {
+export function SalesOrderDialog({ open, onOpenChange, products, customers, onSave }: SalesOrderDialogProps) {
+  const [customerMode, setCustomerMode] = useState<'select' | 'manual'>('select');
+  const [customerId, setCustomerId] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [items, setItems] = useState<ItemInput[]>([{ productId: '', quantity: 1, unit: 'pcs' }]);
 
   useEffect(() => {
     if (open) {
+      setCustomerMode('select');
+      setCustomerId('');
       setCustomerName('');
       setItems([{ productId: '', quantity: 1, unit: 'pcs' }]);
     }
@@ -111,7 +116,11 @@ export function SalesOrderDialog({ open, onOpenChange, products, onSave }: Sales
   const totalMargin = totalRevenue - totalCost;
   const marginPercentage = totalRevenue > 0 ? (totalMargin / totalRevenue) * 100 : 0;
 
-  const canSubmit = customerName.trim() && validItems.length > 0 && 
+  const finalCustomerName = customerMode === 'select' 
+    ? customers.find(c => c.id === customerId)?.name || ''
+    : customerName.trim();
+
+  const canSubmit = finalCustomerName && validItems.length > 0 && 
     validItems.every(x => x.details?.hasEnoughStock);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -132,13 +141,16 @@ export function SalesOrderDialog({ open, onOpenChange, products, onSave }: Sales
     }));
 
     onSave({
-      customerName,
+      customerId: customerMode === 'select' ? customerId : undefined,
+      customerName: finalCustomerName,
       items: orderItems,
       totalRevenue,
       totalCost,
       totalMargin,
       marginPercentage,
       status: 'pending',
+      paymentStatus: 'unpaid',
+      paidAmount: 0,
       orderDate: new Date().toISOString().split('T')[0],
     });
 
@@ -152,15 +164,50 @@ export function SalesOrderDialog({ open, onOpenChange, products, onSave }: Sales
           <DialogTitle>Create Sales Order</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Customer Name */}
+          {/* Customer Selection */}
           <div className="space-y-2">
-            <Label>Customer Name</Label>
-            <Input
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="Enter customer name"
-              required
-            />
+            <Label>Customer</Label>
+            <div className="flex gap-2 mb-2">
+              <Button
+                type="button"
+                variant={customerMode === 'select' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setCustomerMode('select')}
+              >
+                <User className="w-4 h-4 mr-1" />
+                Select from list
+              </Button>
+              <Button
+                type="button"
+                variant={customerMode === 'manual' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setCustomerMode('manual')}
+              >
+                Enter manually
+              </Button>
+            </div>
+            
+            {customerMode === 'select' ? (
+              <Select value={customerId} onValueChange={setCustomerId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select customer" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  {customers.filter(c => c.status === 'active').map((cust) => (
+                    <SelectItem key={cust.id} value={cust.id}>
+                      {cust.name} {cust.phone && `(${cust.phone})`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Enter customer name"
+                required={customerMode === 'manual'}
+              />
+            )}
           </div>
 
           {/* Items */}

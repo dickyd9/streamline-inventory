@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { PurchaseOrder, PurchaseOrderItem, UnitType, UNIT_OPTIONS } from '@/types/inventory';
+import { PurchaseOrder, PurchaseOrderItem, UnitType, UNIT_OPTIONS, Supplier } from '@/types/inventory';
 import { mockProducts, mockSuppliers } from '@/data/mockData';
 import {
   Dialog,
@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Building2 } from 'lucide-react';
 
 interface PurchaseOrderDialogProps {
   open: boolean;
@@ -27,17 +27,25 @@ interface PurchaseOrderDialogProps {
 }
 
 export function PurchaseOrderDialog({ open, onOpenChange, onSave }: PurchaseOrderDialogProps) {
-  const [supplier, setSupplier] = useState('');
+  const [supplierMode, setSupplierMode] = useState<'select' | 'manual'>('select');
+  const [supplierId, setSupplierId] = useState('');
+  const [supplierName, setSupplierName] = useState('');
   const [expectedDate, setExpectedDate] = useState('');
   const [items, setItems] = useState<PurchaseOrderItem[]>([]);
 
   useEffect(() => {
     if (open) {
-      setSupplier('');
+      setSupplierMode('select');
+      setSupplierId('');
+      setSupplierName('');
       setExpectedDate('');
       setItems([]);
     }
   }, [open]);
+
+  const finalSupplier = supplierMode === 'select'
+    ? mockSuppliers.find(s => s.id === supplierId)?.name || ''
+    : supplierName.trim();
 
   const addItem = () => {
     setItems([...items, { 
@@ -112,10 +120,10 @@ export function PurchaseOrderDialog({ open, onOpenChange, onSave }: PurchaseOrde
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (items.length === 0) return;
+    if (items.length === 0 || !finalSupplier) return;
     
     onSave({
-      supplier,
+      supplier: finalSupplier,
       items,
       totalAmount,
       status: 'pending',
@@ -132,29 +140,59 @@ export function PurchaseOrderDialog({ open, onOpenChange, onSave }: PurchaseOrde
           <DialogTitle>Create Purchase Order</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Supplier</Label>
-              <Select value={supplier} onValueChange={setSupplier}>
+          {/* Supplier Selection */}
+          <div className="space-y-2">
+            <Label>Supplier</Label>
+            <div className="flex gap-2 mb-2">
+              <Button
+                type="button"
+                variant={supplierMode === 'select' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSupplierMode('select')}
+              >
+                <Building2 className="w-4 h-4 mr-1" />
+                Select from list
+              </Button>
+              <Button
+                type="button"
+                variant={supplierMode === 'manual' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSupplierMode('manual')}
+              >
+                Enter manually
+              </Button>
+            </div>
+            
+            {supplierMode === 'select' ? (
+              <Select value={supplierId} onValueChange={setSupplierId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select supplier" />
                 </SelectTrigger>
                 <SelectContent className="bg-popover">
                   {mockSuppliers.filter(s => s.status === 'active').map((sup) => (
-                    <SelectItem key={sup.id} value={sup.name}>{sup.name}</SelectItem>
+                    <SelectItem key={sup.id} value={sup.id}>{sup.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Expected Delivery Date</Label>
+            ) : (
               <Input
-                type="date"
-                value={expectedDate}
-                onChange={(e) => setExpectedDate(e.target.value)}
-                required
+                value={supplierName}
+                onChange={(e) => setSupplierName(e.target.value)}
+                placeholder="Enter supplier name"
+                required={supplierMode === 'manual'}
               />
-            </div>
+            )}
+          </div>
+
+          {/* Expected Date */}
+          <div className="space-y-2">
+            <Label>Expected Delivery Date</Label>
+            <Input
+              type="date"
+              value={expectedDate}
+              onChange={(e) => setExpectedDate(e.target.value)}
+              required
+            />
           </div>
 
           <div className="space-y-3">
@@ -281,7 +319,7 @@ export function PurchaseOrderDialog({ open, onOpenChange, onSave }: PurchaseOrde
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={items.length === 0 || !supplier}>
+            <Button type="submit" disabled={items.length === 0 || !finalSupplier}>
               Create Order
             </Button>
           </DialogFooter>

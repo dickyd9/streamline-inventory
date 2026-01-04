@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { StockMovement, StockMovementType, UnitType, UNIT_OPTIONS, Product } from '@/types/inventory';
+import { StockMovement, StockMovementType, StockAdjustmentReason, UnitType, UNIT_OPTIONS, ADJUSTMENT_REASONS, Product } from '@/types/inventory';
 import {
   Dialog,
   DialogContent,
@@ -30,6 +30,7 @@ interface StockMovementDialogProps {
 
 export function StockMovementDialog({ open, onOpenChange, products, onSave }: StockMovementDialogProps) {
   const [movementType, setMovementType] = useState<StockMovementType>('in');
+  const [adjustmentReason, setAdjustmentReason] = useState<StockAdjustmentReason>('correction');
   const [productId, setProductId] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [unit, setUnit] = useState<UnitType>('pcs');
@@ -43,9 +44,15 @@ export function StockMovementDialog({ open, onOpenChange, products, onSave }: St
   const costPerPc = customCostPerPc ?? (selectedProduct?.costPrice || 0);
   const totalValue = totalPcs * costPerPc;
 
+  // Filter adjustment reasons based on movement type
+  const availableReasons = ADJUSTMENT_REASONS.filter(r => 
+    r.direction === 'both' || r.direction === movementType
+  );
+
   useEffect(() => {
     if (open) {
       setMovementType('in');
+      setAdjustmentReason('correction');
       setProductId('');
       setQuantity(1);
       setUnit('pcs');
@@ -55,6 +62,14 @@ export function StockMovementDialog({ open, onOpenChange, products, onSave }: St
     }
   }, [open]);
 
+  // Update adjustment reason when movement type changes
+  useEffect(() => {
+    const currentReasonValid = availableReasons.some(r => r.type === adjustmentReason);
+    if (!currentReasonValid) {
+      setAdjustmentReason(availableReasons[0]?.type || 'correction');
+    }
+  }, [movementType]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProduct || !selectedUnit) return;
@@ -63,6 +78,7 @@ export function StockMovementDialog({ open, onOpenChange, products, onSave }: St
       productId,
       productName: selectedProduct.name,
       type: movementType,
+      adjustmentReason,
       quantity,
       unit,
       pcsPerUnit: selectedUnit.pcsPerUnit,
@@ -116,6 +132,23 @@ export function StockMovementDialog({ open, onOpenChange, products, onSave }: St
                 Stock Out
               </Button>
             </div>
+          </div>
+
+          {/* Adjustment Reason */}
+          <div className="space-y-2">
+            <Label>Reason</Label>
+            <Select value={adjustmentReason} onValueChange={(v) => setAdjustmentReason(v as StockAdjustmentReason)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select reason" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover">
+                {availableReasons.map((reason) => (
+                  <SelectItem key={reason.type} value={reason.type}>
+                    {reason.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Product Selection */}
@@ -221,11 +254,11 @@ export function StockMovementDialog({ open, onOpenChange, products, onSave }: St
 
           {/* Reference */}
           <div className="space-y-2">
-            <Label>Reference (PO#, SO#, or reason)</Label>
+            <Label>Reference (PO#, SO#, or ID)</Label>
             <Input
               value={reference}
               onChange={(e) => setReference(e.target.value)}
-              placeholder="e.g., PO-2026-001 or Inventory Adjustment"
+              placeholder="e.g., PO-2026-001, ADJ-001"
               required
             />
           </div>

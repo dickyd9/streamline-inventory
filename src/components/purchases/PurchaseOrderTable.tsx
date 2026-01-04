@@ -179,6 +179,7 @@ export function PurchaseOrderTable() {
       productId: item.productId,
       productName: item.productName,
       type: 'in' as const,
+      adjustmentReason: 'purchase' as const,
       quantity: item.quantity,
       unit: item.unit,
       pcsPerUnit: item.pcsPerUnit,

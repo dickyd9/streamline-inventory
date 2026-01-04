@@ -1,4 +1,4 @@
-import { Product, Supplier, PurchaseOrder, StockMovement, SalesOrder } from '@/types/inventory';
+import { Product, Supplier, PurchaseOrder, StockMovement, SalesOrder, Customer } from '@/types/inventory';
 
 export const mockProducts: Product[] = [
   { id: '1', name: 'Wireless Mouse', sku: 'WM-001', category: 'Electronics', quantity: 150, minStock: 50, costPrice: 25.00, sellingPrice: 35.99, unit: 'pcs', supplier: 'TechSupply Co.', lastUpdated: '2026-01-02' },
@@ -19,6 +19,13 @@ export const mockSuppliers: Supplier[] = [
   { id: '3', name: 'LightWorld', email: 'info@lightworld.com', phone: '+1 (555) 345-6789', address: '789 Bright St, Los Angeles, CA', status: 'inactive' },
   { id: '4', name: 'Paper House', email: 'contact@paperhouse.com', phone: '+1 (555) 456-7890', address: '321 Paper Lane, Chicago, IL', status: 'active' },
   { id: '5', name: 'Fresh Supplies', email: 'orders@freshsupplies.com', phone: '+1 (555) 567-8901', address: '567 Fresh Ave, Miami, FL', status: 'active' },
+];
+
+export const mockCustomers: Customer[] = [
+  { id: '1', name: 'Customer Alpha', email: 'alpha@company.com', phone: '+1 (555) 111-2222', address: '100 Alpha St, Boston, MA', status: 'active' },
+  { id: '2', name: 'Customer Beta', email: 'beta@business.com', phone: '+1 (555) 333-4444', address: '200 Beta Ave, Seattle, WA', status: 'active' },
+  { id: '3', name: 'Gamma Industries', email: 'info@gamma.com', phone: '+1 (555) 555-6666', address: '300 Gamma Blvd, Austin, TX', status: 'active' },
+  { id: '4', name: 'Delta Corp', email: 'sales@delta.com', phone: '+1 (555) 777-8888', address: '400 Delta Way, Denver, CO', status: 'inactive' },
 ];
 
 export const mockPurchaseOrders: PurchaseOrder[] = [
@@ -81,6 +88,7 @@ export const mockStockMovements: StockMovement[] = [
     productId: '1',
     productName: 'Wireless Mouse',
     type: 'in',
+    adjustmentReason: 'purchase',
     quantity: 5,
     unit: 'box',
     pcsPerUnit: 10,
@@ -97,6 +105,7 @@ export const mockStockMovements: StockMovement[] = [
     productId: '2',
     productName: 'USB-C Cable',
     type: 'out',
+    adjustmentReason: 'sale',
     quantity: 30,
     unit: 'pcs',
     pcsPerUnit: 1,
@@ -116,6 +125,7 @@ export const mockStockMovements: StockMovement[] = [
     productId: '5',
     productName: 'Notebook A5',
     type: 'in',
+    adjustmentReason: 'purchase',
     quantity: 100,
     unit: 'dozen',
     pcsPerUnit: 12,
@@ -132,13 +142,14 @@ export const mockStockMovements: StockMovement[] = [
     productId: '8',
     productName: 'Keyboard Mechanical',
     type: 'out',
+    adjustmentReason: 'damage',
     quantity: 10,
     unit: 'pcs',
     pcsPerUnit: 1,
     totalPcs: 10,
     costPerPc: 85.00,
     totalValue: 850.00,
-    reference: 'ADJUST-001',
+    reference: 'ADJ-001',
     notes: 'Damaged during transport - written off',
     date: '2026-01-01',
     createdBy: 'Admin',
@@ -148,6 +159,7 @@ export const mockStockMovements: StockMovement[] = [
     productId: '3',
     productName: 'Office Chair',
     type: 'in',
+    adjustmentReason: 'purchase',
     quantity: 15,
     unit: 'pcs',
     pcsPerUnit: 1,
@@ -164,6 +176,7 @@ export const mockStockMovements: StockMovement[] = [
     productId: '10',
     productName: 'Bottled Water',
     type: 'in',
+    adjustmentReason: 'purchase',
     quantity: 20,
     unit: 'crate',
     pcsPerUnit: 24,
@@ -175,12 +188,30 @@ export const mockStockMovements: StockMovement[] = [
     date: '2026-01-03',
     createdBy: 'John Doe',
   },
+  {
+    id: '7',
+    productId: '6',
+    productName: 'Ballpoint Pen',
+    type: 'in',
+    adjustmentReason: 'initial',
+    quantity: 500,
+    unit: 'pcs',
+    pcsPerUnit: 1,
+    totalPcs: 500,
+    costPerPc: 0.50,
+    totalValue: 250.00,
+    reference: 'INIT-001',
+    notes: 'Initial stock setup',
+    date: '2025-12-01',
+    createdBy: 'Admin',
+  },
 ];
 
 export const mockSalesOrders: SalesOrder[] = [
   {
     id: '1',
     orderNumber: 'SO-2026-001',
+    customerId: '1',
     customerName: 'Customer Alpha',
     items: [
       {
@@ -202,11 +233,14 @@ export const mockSalesOrders: SalesOrder[] = [
     totalMargin: 239.70,
     marginPercentage: 49.97,
     status: 'completed',
+    paymentStatus: 'paid',
+    paidAmount: 479.70,
     orderDate: '2026-01-03',
   },
   {
     id: '2',
     orderNumber: 'SO-2026-002',
+    customerId: '2',
     customerName: 'Customer Beta',
     items: [
       {
@@ -240,7 +274,37 @@ export const mockSalesOrders: SalesOrder[] = [
     totalCost: 675.00,
     totalMargin: 434.85,
     marginPercentage: 39.18,
-    status: 'completed',
+    status: 'received',
+    paymentStatus: 'partial',
+    paidAmount: 500.00,
     orderDate: '2026-01-02',
+  },
+  {
+    id: '3',
+    orderNumber: 'SO-2026-003',
+    customerName: 'Walk-in Customer', // No master record
+    items: [
+      {
+        productId: '5',
+        productName: 'Notebook A5',
+        quantity: 24,
+        unit: 'dozen',
+        pcsPerUnit: 12,
+        sellingPrice: 71.88,
+        costPrice: 36.00,
+        totalPcs: 288,
+        revenue: 1725.12,
+        cost: 864.00,
+        margin: 861.12,
+      },
+    ],
+    totalRevenue: 1725.12,
+    totalCost: 864.00,
+    totalMargin: 861.12,
+    marginPercentage: 49.92,
+    status: 'pending',
+    paymentStatus: 'unpaid',
+    paidAmount: 0,
+    orderDate: '2026-01-04',
   },
 ];
