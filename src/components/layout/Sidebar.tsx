@@ -8,7 +8,8 @@ import {
   Settings,
   ChevronLeft,
   Menu,
-  ArrowLeftRight
+  ArrowLeftRight,
+  ShoppingBag
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,7 @@ const menuItems = [
   { icon: Package, label: 'Inventory', path: '/inventory' },
   { icon: ArrowLeftRight, label: 'Stock Movements', path: '/stock-movements' },
   { icon: ShoppingCart, label: 'Purchase Orders', path: '/purchases' },
+  { icon: ShoppingBag, label: 'Sales Orders', path: '/sales' },
   { icon: Users, label: 'Suppliers', path: '/suppliers' },
   { icon: BarChart3, label: 'Reports', path: '/reports' },
 ];

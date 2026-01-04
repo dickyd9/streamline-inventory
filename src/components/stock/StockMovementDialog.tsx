@@ -35,11 +35,13 @@ export function StockMovementDialog({ open, onOpenChange, products, onSave }: St
   const [unit, setUnit] = useState<UnitType>('pcs');
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
+  const [customCostPerPc, setCustomCostPerPc] = useState<number | null>(null);
 
   const selectedProduct = products.find(p => p.id === productId);
   const selectedUnit = UNIT_OPTIONS.find(u => u.type === unit);
   const totalPcs = quantity * (selectedUnit?.pcsPerUnit || 1);
-  const totalValue = totalPcs * (selectedProduct?.unitPrice || 0);
+  const costPerPc = customCostPerPc ?? (selectedProduct?.costPrice || 0);
+  const totalValue = totalPcs * costPerPc;
 
   useEffect(() => {
     if (open) {
@@ -49,6 +51,7 @@ export function StockMovementDialog({ open, onOpenChange, products, onSave }: St
       setUnit('pcs');
       setReference('');
       setNotes('');
+      setCustomCostPerPc(null);
     }
   }, [open]);
 
@@ -64,6 +67,11 @@ export function StockMovementDialog({ open, onOpenChange, products, onSave }: St
       unit,
       pcsPerUnit: selectedUnit.pcsPerUnit,
       totalPcs,
+      costPerPc,
+      totalValue,
+      sellingPricePerPc: movementType === 'out' ? selectedProduct.sellingPrice : undefined,
+      totalRevenue: movementType === 'out' ? totalPcs * selectedProduct.sellingPrice : undefined,
+      margin: movementType === 'out' ? (totalPcs * selectedProduct.sellingPrice) - totalValue : undefined,
       reference,
       notes,
       date: new Date().toISOString().split('T')[0],
@@ -156,6 +164,21 @@ export function StockMovementDialog({ open, onOpenChange, products, onSave }: St
             </div>
           </div>
 
+          {/* Cost per piece override for stock in */}
+          {movementType === 'in' && selectedProduct && (
+            <div className="space-y-2">
+              <Label>Cost per piece (optional override)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={customCostPerPc ?? ''}
+                onChange={(e) => setCustomCostPerPc(e.target.value ? parseFloat(e.target.value) : null)}
+                placeholder={`Default: $${selectedProduct.costPrice.toFixed(2)}`}
+              />
+            </div>
+          )}
+
           {/* Calculation Summary */}
           {selectedProduct && (
             <div className="bg-muted/50 rounded-lg p-4 space-y-2">
@@ -168,13 +191,19 @@ export function StockMovementDialog({ open, onOpenChange, products, onSave }: St
                 <span className="font-medium">{totalPcs} pcs</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Unit price (per pc):</span>
-                <span className="font-medium">${selectedProduct.unitPrice.toFixed(2)}</span>
+                <span className="text-muted-foreground">Cost price (per pc):</span>
+                <span className="font-medium">${costPerPc.toFixed(2)}</span>
               </div>
               <div className="flex justify-between pt-2 border-t">
                 <span className="font-medium">Total Value:</span>
                 <span className="font-bold text-lg">${totalValue.toFixed(2)}</span>
               </div>
+              {movementType === 'out' && (
+                <div className="flex justify-between text-sm text-success">
+                  <span>Selling revenue:</span>
+                  <span className="font-medium">${(totalPcs * selectedProduct.sellingPrice).toFixed(2)}</span>
+                </div>
+              )}
               <div className={cn(
                 "flex justify-between text-sm pt-2",
                 movementType === 'in' ? "text-success" : "text-destructive"
