@@ -1,6 +1,7 @@
 import { mockSalesOrders, mockProducts } from '@/data/mockData';
 import { TrendingUp, Award, Package } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface TopProduct {
   productId: string;
@@ -11,6 +12,8 @@ interface TopProduct {
 }
 
 export function TopSellingProducts() {
+  const { formatCurrency, language } = useLanguage();
+  
   // Calculate top selling products from completed sales
   const completedOrders = mockSalesOrders.filter(o => o.status === 'completed');
   
@@ -42,10 +45,12 @@ export function TopSellingProducts() {
       <div className="stat-card">
         <div className="flex items-center gap-2 mb-4">
           <Award className="w-5 h-5 text-primary" />
-          <h3 className="font-semibold text-lg">Top Selling Products</h3>
+          <h3 className="font-semibold text-lg">
+            {language === 'id' ? 'Produk Terlaris' : 'Top Selling Products'}
+          </h3>
         </div>
         <p className="text-muted-foreground text-sm text-center py-4">
-          No sales data available yet
+          {language === 'id' ? 'Belum ada data penjualan' : 'No sales data available yet'}
         </p>
       </div>
     );
@@ -55,7 +60,9 @@ export function TopSellingProducts() {
     <div className="stat-card">
       <div className="flex items-center gap-2 mb-4">
         <Award className="w-5 h-5 text-primary" />
-        <h3 className="font-semibold text-lg">Top Selling Products</h3>
+        <h3 className="font-semibold text-lg">
+          {language === 'id' ? 'Produk Terlaris' : 'Top Selling Products'}
+        </h3>
       </div>
       <div className="space-y-3">
         {topProducts.map((product, index) => {
@@ -75,17 +82,17 @@ export function TopSellingProducts() {
                 <div>
                   <p className="font-medium text-sm">{product.productName}</p>
                   <p className="text-xs text-muted-foreground">
-                    {product.totalSold} pcs sold
+                    {product.totalSold} {language === 'id' ? 'pcs terjual' : 'pcs sold'}
                   </p>
                 </div>
               </div>
               <div className="text-right">
                 <p className="font-semibold text-sm text-success">
-                  ${product.totalRevenue.toFixed(0)}
+                  {formatCurrency(product.totalRevenue)}
                 </p>
                 {stockStatus === 'low' && (
                   <Badge variant="outline" className="text-xs bg-warning/10 text-warning border-warning/20">
-                    Low Stock
+                    {language === 'id' ? 'Stok Menipis' : 'Low Stock'}
                   </Badge>
                 )}
               </div>

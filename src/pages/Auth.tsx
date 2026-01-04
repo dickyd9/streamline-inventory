@@ -124,6 +124,16 @@ export default function Auth() {
     setIsLoading(false);
   };
 
+  const fillDemoCredentials = (role: 'owner' | 'staff') => {
+    if (role === 'owner') {
+      setEmail('owner@invenpro.id');
+      setPassword('owner123');
+    } else {
+      setEmail('staff@invenpro.id');
+      setPassword('staff123');
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-muted/30 to-background p-4">
       <Card className="w-full max-w-md">
@@ -136,8 +146,8 @@ export default function Auth() {
           <CardTitle className="text-2xl">InvenPro</CardTitle>
           <CardDescription>
             {mode === 'forgot' 
-              ? 'Enter your email to reset your password'
-              : 'Inventory Management System'}
+              ? 'Masukkan email untuk reset password'
+              : 'Sistem Manajemen Inventori'}
           </CardDescription>
         </CardHeader>
 
@@ -149,7 +159,7 @@ export default function Auth() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="you@example.com"
+                  placeholder="anda@contoh.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -159,7 +169,7 @@ export default function Auth() {
             <CardFooter className="flex flex-col gap-3">
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Send Reset Link
+                Kirim Link Reset
               </Button>
               <Button 
                 type="button" 
@@ -167,33 +177,58 @@ export default function Auth() {
                 className="w-full"
                 onClick={() => setMode('login')}
               >
-                Back to Login
+                Kembali ke Login
               </Button>
             </CardFooter>
           </form>
         ) : (
           <Tabs value={mode} onValueChange={(v) => setMode(v as AuthMode)}>
             <TabsList className="grid w-full grid-cols-2 mx-6" style={{ width: 'calc(100% - 48px)' }}>
-              <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+              <TabsTrigger value="login">Masuk</TabsTrigger>
+              <TabsTrigger value="signup">Daftar</TabsTrigger>
             </TabsList>
 
             <TabsContent value="login">
               <form onSubmit={handleLogin}>
                 <CardContent className="space-y-4 pt-4">
+                  {/* Demo Account Info */}
+                  <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                    <p className="text-xs font-medium text-primary mb-2">Akun Demo:</p>
+                    <div className="flex gap-2">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1 text-xs"
+                        onClick={() => fillDemoCredentials('owner')}
+                      >
+                        Owner
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1 text-xs"
+                        onClick={() => fillDemoCredentials('staff')}
+                      >
+                        Staff
+                      </Button>
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="login-email">Email</Label>
                     <Input
                       id="login-email"
                       type="email"
-                      placeholder="you@example.com"
+                      placeholder="anda@contoh.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="login-password">Password</Label>
+                    <Label htmlFor="login-password">Kata Sandi</Label>
                     <Input
                       id="login-password"
                       type="password"
@@ -207,7 +242,7 @@ export default function Auth() {
                 <CardFooter className="flex flex-col gap-3">
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    Login
+                    Masuk
                   </Button>
                   <Button 
                     type="button" 
@@ -215,7 +250,7 @@ export default function Auth() {
                     className="text-sm"
                     onClick={() => setMode('forgot')}
                   >
-                    Forgot Password?
+                    Lupa Kata Sandi?
                   </Button>
                 </CardFooter>
               </form>
@@ -225,11 +260,11 @@ export default function Auth() {
               <form onSubmit={handleSignup}>
                 <CardContent className="space-y-4 pt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signup-name">Full Name</Label>
+                    <Label htmlFor="signup-name">Nama Lengkap</Label>
                     <Input
                       id="signup-name"
                       type="text"
-                      placeholder="John Doe"
+                      placeholder="Nama Lengkap"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       required
@@ -240,14 +275,14 @@ export default function Auth() {
                     <Input
                       id="signup-email"
                       type="email"
-                      placeholder="you@example.com"
+                      placeholder="anda@contoh.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-password">Password</Label>
+                    <Label htmlFor="signup-password">Kata Sandi</Label>
                     <Input
                       id="signup-password"
                       type="password"
@@ -258,7 +293,7 @@ export default function Auth() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-confirm">Confirm Password</Label>
+                    <Label htmlFor="signup-confirm">Konfirmasi Kata Sandi</Label>
                     <Input
                       id="signup-confirm"
                       type="password"
@@ -272,7 +307,7 @@ export default function Auth() {
                 <CardFooter>
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    Create Account
+                    Buat Akun
                   </Button>
                 </CardFooter>
               </form>
