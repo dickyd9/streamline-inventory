@@ -7,7 +7,8 @@ import {
   BarChart3,
   Settings,
   ChevronLeft,
-  Menu
+  Menu,
+  ArrowLeftRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,7 @@ import { useState } from 'react';
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
   { icon: Package, label: 'Inventory', path: '/inventory' },
+  { icon: ArrowLeftRight, label: 'Stock Movements', path: '/stock-movements' },
   { icon: ShoppingCart, label: 'Purchase Orders', path: '/purchases' },
   { icon: Users, label: 'Suppliers', path: '/suppliers' },
   { icon: BarChart3, label: 'Reports', path: '/reports' },

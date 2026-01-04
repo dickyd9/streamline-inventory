@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Product } from '@/types/inventory';
+import { Product, UNIT_OPTIONS } from '@/types/inventory';
 import { mockProducts as initialProducts } from '@/data/mockData';
 import {
   Table,
@@ -61,6 +61,10 @@ export function ProductTable() {
     const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
+
+  const getUnitLabel = (unitType: string) => {
+    return UNIT_OPTIONS.find(u => u.type === unitType)?.label || unitType;
+  };
 
   const handleAddProduct = () => {
     setSelectedProduct(null);
@@ -146,6 +150,7 @@ export function ProductTable() {
               <TableHead>SKU</TableHead>
               <TableHead>Category</TableHead>
               <TableHead className="text-right">Quantity</TableHead>
+              <TableHead>Unit</TableHead>
               <TableHead className="text-right">Unit Price</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -169,7 +174,15 @@ export function ProductTable() {
                     </span>
                     <span className="text-muted-foreground"> / {product.minStock}</span>
                   </TableCell>
-                  <TableCell className="text-right">${product.unitPrice.toFixed(2)}</TableCell>
+                  <TableCell>
+                    <Badge variant="secondary" className="text-xs capitalize">
+                      {product.unit}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    ${product.unitPrice.toFixed(2)}
+                    <span className="text-xs text-muted-foreground">/{product.unit}</span>
+                  </TableCell>
                   <TableCell>
                     <Badge variant="outline" className={cn(stockStyles[status])}>
                       {stockLabels[status]}

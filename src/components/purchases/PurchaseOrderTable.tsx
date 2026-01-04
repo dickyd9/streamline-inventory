@@ -46,6 +46,8 @@ const statusStyles = {
 };
 
 function OrderDetailsDialog({ order }: { order: PurchaseOrder }) {
+  const totalPcs = order.items.reduce((sum, item) => sum + item.totalPcs, 0);
+  
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -53,7 +55,7 @@ function OrderDetailsDialog({ order }: { order: PurchaseOrder }) {
           <Eye className="w-4 h-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5" />
@@ -84,19 +86,44 @@ function OrderDetailsDialog({ order }: { order: PurchaseOrder }) {
           
           <div>
             <p className="text-sm text-muted-foreground mb-2">Items</p>
-            <div className="bg-muted/50 rounded-lg p-3 space-y-2">
-              {order.items.map((item, index) => (
-                <div key={index} className="flex justify-between">
-                  <span>{item.productName} × {item.quantity}</span>
-                  <span className="font-medium">${(item.quantity * item.unitPrice).toFixed(2)}</span>
-                </div>
-              ))}
+            <div className="bg-muted/50 rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left p-3 font-medium">Product</th>
+                    <th className="text-right p-3 font-medium">Qty</th>
+                    <th className="text-center p-3 font-medium">Unit</th>
+                    <th className="text-right p-3 font-medium">Total Pcs</th>
+                    <th className="text-right p-3 font-medium">Unit Price</th>
+                    <th className="text-right p-3 font-medium">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {order.items.map((item, index) => (
+                    <tr key={index} className="border-b last:border-0">
+                      <td className="p-3">{item.productName}</td>
+                      <td className="p-3 text-right">{item.quantity}</td>
+                      <td className="p-3 text-center">
+                        <Badge variant="secondary" className="text-xs capitalize">{item.unit}</Badge>
+                      </td>
+                      <td className="p-3 text-right text-muted-foreground">{item.totalPcs}</td>
+                      <td className="p-3 text-right">${item.unitPrice.toFixed(2)}</td>
+                      <td className="p-3 text-right font-medium">${(item.quantity * item.unitPrice).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
 
-          <div className="flex justify-between pt-2 border-t">
-            <span className="font-semibold">Total Amount</span>
-            <span className="font-bold text-lg">${order.totalAmount.toLocaleString()}</span>
+          <div className="flex justify-between items-center pt-2 border-t">
+            <div className="text-sm text-muted-foreground">
+              Total Pieces: <strong>{totalPcs.toLocaleString()}</strong>
+            </div>
+            <div className="text-right">
+              <span className="font-semibold">Total Amount: </span>
+              <span className="font-bold text-lg">${order.totalAmount.toLocaleString()}</span>
+            </div>
           </div>
         </div>
       </DialogContent>
@@ -175,74 +202,82 @@ export function PurchaseOrderTable() {
               <TableHead>Supplier</TableHead>
               <TableHead>Order Date</TableHead>
               <TableHead>Expected Date</TableHead>
+              <TableHead className="text-right">Items</TableHead>
               <TableHead className="text-right">Total</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredOrders.map((order) => (
-              <TableRow key={order.id} className="table-row-hover">
-                <TableCell className="font-medium">{order.orderNumber}</TableCell>
-                <TableCell>{order.supplier}</TableCell>
-                <TableCell className="text-muted-foreground">{order.orderDate}</TableCell>
-                <TableCell className="text-muted-foreground">{order.expectedDate}</TableCell>
-                <TableCell className="text-right font-semibold">
-                  ${order.totalAmount.toLocaleString()}
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline" className={cn("capitalize", statusStyles[order.status])}>
-                    {order.status}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-1">
-                    <OrderDetailsDialog order={order} />
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="bg-popover">
-                        {order.status === 'pending' && (
-                          <>
-                            <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'approved')}>
-                              <CheckCircle className="w-4 h-4 mr-2 text-primary" />
-                              Approve Order
+            {filteredOrders.map((order) => {
+              const totalPcs = order.items.reduce((sum, item) => sum + item.totalPcs, 0);
+              return (
+                <TableRow key={order.id} className="table-row-hover">
+                  <TableCell className="font-medium">{order.orderNumber}</TableCell>
+                  <TableCell>{order.supplier}</TableCell>
+                  <TableCell className="text-muted-foreground">{order.orderDate}</TableCell>
+                  <TableCell className="text-muted-foreground">{order.expectedDate}</TableCell>
+                  <TableCell className="text-right">
+                    <span className="font-medium">{order.items.length}</span>
+                    <span className="text-muted-foreground text-xs ml-1">({totalPcs} pcs)</span>
+                  </TableCell>
+                  <TableCell className="text-right font-semibold">
+                    ${order.totalAmount.toLocaleString()}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={cn("capitalize", statusStyles[order.status])}>
+                      {order.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1">
+                      <OrderDetailsDialog order={order} />
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="bg-popover">
+                          {order.status === 'pending' && (
+                            <>
+                              <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'approved')}>
+                                <CheckCircle className="w-4 h-4 mr-2 text-primary" />
+                                Approve Order
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                            </>
+                          )}
+                          {order.status === 'approved' && (
+                            <>
+                              <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'received')}>
+                                <Package className="w-4 h-4 mr-2 text-success" />
+                                Mark as Received
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                            </>
+                          )}
+                          {(order.status === 'pending' || order.status === 'approved') && (
+                            <DropdownMenuItem 
+                              onClick={() => updateOrderStatus(order.id, 'cancelled')}
+                              className="text-destructive"
+                            >
+                              <XCircle className="w-4 h-4 mr-2" />
+                              Cancel Order
                             </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                          </>
-                        )}
-                        {order.status === 'approved' && (
-                          <>
-                            <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'received')}>
-                              <Package className="w-4 h-4 mr-2 text-success" />
-                              Mark as Received
+                          )}
+                          {order.status === 'cancelled' && (
+                            <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'pending')}>
+                              Reopen Order
                             </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                          </>
-                        )}
-                        {(order.status === 'pending' || order.status === 'approved') && (
-                          <DropdownMenuItem 
-                            onClick={() => updateOrderStatus(order.id, 'cancelled')}
-                            className="text-destructive"
-                          >
-                            <XCircle className="w-4 h-4 mr-2" />
-                            Cancel Order
-                          </DropdownMenuItem>
-                        )}
-                        {order.status === 'cancelled' && (
-                          <DropdownMenuItem onClick={() => updateOrderStatus(order.id, 'pending')}>
-                            Reopen Order
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </div>
