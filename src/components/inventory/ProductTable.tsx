@@ -19,11 +19,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Edit, Trash2, Search, Plus } from 'lucide-react';
+import { Edit, Trash2, Search, Plus, ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ProductDialog } from './ProductDialog';
 import { DeleteProductDialog } from './DeleteProductDialog';
 import { toast } from 'sonner';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const getStockStatus = (product: Product) => {
   if (product.quantity === 0) return 'out-of-stock';
@@ -37,18 +38,12 @@ const stockStyles = {
   'out-of-stock': 'bg-destructive/10 text-destructive border-destructive/20',
 };
 
-const stockLabels = {
-  'in-stock': 'In Stock',
-  'low-stock': 'Low Stock',
-  'out-of-stock': 'Out of Stock',
-};
-
 export function ProductTable() {
-  const [products, setProducts] = useState<Product[]>(initialProducts);
+  const { language, formatCurrency } = useLanguage();
+  const [products, setProducts] = useState<(Product & { imageUrl?: string })[]>(initialProducts);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   
-  // Dialog states
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -62,8 +57,10 @@ export function ProductTable() {
     return matchesSearch && matchesCategory;
   });
 
-  const getUnitLabel = (unitType: string) => {
-    return UNIT_OPTIONS.find(u => u.type === unitType)?.label || unitType;
+  const stockLabels = {
+    'in-stock': language === 'id' ? 'Tersedia' : 'In Stock',
+    'low-stock': language === 'id' ? 'Stok Menipis' : 'Low Stock',
+    'out-of-stock': language === 'id' ? 'Habis' : 'Out of Stock',
   };
 
   const handleAddProduct = () => {
@@ -81,31 +78,29 @@ export function ProductTable() {
     setDeleteDialogOpen(true);
   };
 
-  const handleSaveProduct = (productData: Omit<Product, 'id' | 'lastUpdated'>) => {
+  const handleSaveProduct = (productData: Omit<Product, 'id' | 'lastUpdated'> & { imageUrl?: string }) => {
     if (selectedProduct) {
-      // Edit existing
       setProducts(products.map(p => 
         p.id === selectedProduct.id 
           ? { ...p, ...productData, lastUpdated: new Date().toISOString().split('T')[0] }
           : p
       ));
-      toast.success('Product updated successfully');
+      toast.success(language === 'id' ? 'Produk berhasil diperbarui' : 'Product updated successfully');
     } else {
-      // Add new
-      const newProduct: Product = {
+      const newProduct = {
         ...productData,
         id: Date.now().toString(),
         lastUpdated: new Date().toISOString().split('T')[0],
       };
       setProducts([...products, newProduct]);
-      toast.success('Product added successfully');
+      toast.success(language === 'id' ? 'Produk berhasil ditambahkan' : 'Product added successfully');
     }
   };
 
   const handleDeleteConfirm = () => {
     if (selectedProduct) {
       setProducts(products.filter(p => p.id !== selectedProduct.id));
-      toast.success('Product deleted successfully');
+      toast.success(language === 'id' ? 'Produk berhasil dihapus' : 'Product deleted successfully');
       setDeleteDialogOpen(false);
       setSelectedProduct(null);
     }
@@ -118,7 +113,7 @@ export function ProductTable() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search products..."
+            placeholder={language === 'id' ? 'Cari produk...' : 'Search products...'}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-9"
@@ -126,10 +121,10 @@ export function ProductTable() {
         </div>
         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
           <SelectTrigger className="w-full sm:w-48">
-            <SelectValue placeholder="All Categories" />
+            <SelectValue placeholder={language === 'id' ? 'Semua Kategori' : 'All Categories'} />
           </SelectTrigger>
           <SelectContent className="bg-popover">
-            <SelectItem value="all">All Categories</SelectItem>
+            <SelectItem value="all">{language === 'id' ? 'Semua Kategori' : 'All Categories'}</SelectItem>
             {categories.map(cat => (
               <SelectItem key={cat} value={cat}>{cat}</SelectItem>
             ))}
@@ -137,23 +132,79 @@ export function ProductTable() {
         </Select>
         <Button className="gap-2" onClick={handleAddProduct}>
           <Plus className="w-4 h-4" />
-          Add Product
+          <span className="hidden sm:inline">{language === 'id' ? 'Tambah Produk' : 'Add Product'}</span>
+          <span className="sm:hidden">{language === 'id' ? 'Tambah' : 'Add'}</span>
         </Button>
       </div>
 
-      {/* Table */}
-      <div className="bg-card rounded-xl border border-border overflow-hidden">
+      {/* Mobile Card View */}
+      <div className="block lg:hidden space-y-3">
+        {filteredProducts.map((product) => {
+          const status = getStockStatus(product);
+          return (
+            <div key={product.id} className="bg-card rounded-lg border p-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center overflow-hidden shrink-0">
+                  {product.imageUrl ? (
+                    <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <ImageIcon className="w-6 h-6 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-medium truncate">{product.name}</h3>
+                  <p className="text-sm text-muted-foreground">{product.sku}</p>
+                  <Badge variant="secondary" className="text-xs mt-1">{product.category}</Badge>
+                </div>
+                <Badge variant="outline" className={cn(stockStyles[status], "shrink-0")}>
+                  {stockLabels[status]}
+                </Badge>
+              </div>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground">{language === 'id' ? 'Stok:' : 'Stock:'}</span>
+                  <span className={cn(
+                    "ml-1 font-medium",
+                    status === 'out-of-stock' && "text-destructive",
+                    status === 'low-stock' && "text-warning"
+                  )}>
+                    {product.quantity}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">{language === 'id' ? 'Harga:' : 'Price:'}</span>
+                  <span className="ml-1 font-medium text-success">{formatCurrency(product.sellingPrice)}</span>
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end pt-2 border-t">
+                <Button variant="ghost" size="sm" onClick={() => handleEditProduct(product)}>
+                  <Edit className="w-4 h-4 mr-1" />
+                  {language === 'id' ? 'Edit' : 'Edit'}
+                </Button>
+                <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDeleteClick(product)}>
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  {language === 'id' ? 'Hapus' : 'Delete'}
+                </Button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden lg:block bg-card rounded-xl border border-border overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead>Product</TableHead>
+              <TableHead className="w-12"></TableHead>
+              <TableHead>{language === 'id' ? 'Produk' : 'Product'}</TableHead>
               <TableHead>SKU</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead className="text-right">Quantity</TableHead>
-              <TableHead>Unit</TableHead>
-              <TableHead className="text-right">Unit Price</TableHead>
+              <TableHead>{language === 'id' ? 'Kategori' : 'Category'}</TableHead>
+              <TableHead className="text-right">{language === 'id' ? 'Jumlah' : 'Quantity'}</TableHead>
+              <TableHead>{language === 'id' ? 'Satuan' : 'Unit'}</TableHead>
+              <TableHead className="text-right">{language === 'id' ? 'Harga' : 'Price'}</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="text-right">{language === 'id' ? 'Aksi' : 'Actions'}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -161,6 +212,15 @@ export function ProductTable() {
               const status = getStockStatus(product);
               return (
                 <TableRow key={product.id} className="table-row-hover">
+                  <TableCell>
+                    <div className="w-10 h-10 rounded bg-muted flex items-center justify-center overflow-hidden">
+                      {product.imageUrl ? (
+                        <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell className="text-muted-foreground">{product.sku}</TableCell>
                   <TableCell>{product.category}</TableCell>
@@ -181,8 +241,8 @@ export function ProductTable() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="text-xs">
-                      <div>Cost: ${product.costPrice.toFixed(2)}</div>
-                      <div className="text-success">Sell: ${product.sellingPrice.toFixed(2)}</div>
+                      <div>{language === 'id' ? 'Beli:' : 'Cost:'} {formatCurrency(product.costPrice)}</div>
+                      <div className="text-success">{language === 'id' ? 'Jual:' : 'Sell:'} {formatCurrency(product.sellingPrice)}</div>
                     </div>
                   </TableCell>
                   <TableCell>

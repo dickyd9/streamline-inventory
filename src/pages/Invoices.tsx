@@ -34,13 +34,15 @@ import {
   CreditCard,
   Eye,
   Download,
-  Plus,
+  Printer,
   Clock,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  X
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 // Mock data
 const mockInvoices = [
@@ -53,8 +55,15 @@ const mockInvoices = [
     invoice_date: '2024-01-15',
     due_date: '2024-02-15',
     status: 'paid',
+    subtotal: 13513514,
+    tax_amount: 1486486,
+    discount_amount: 0,
     total_amount: 15000000,
     paid_amount: 15000000,
+    items: [
+      { name: 'Laptop ASUS X515', qty: 5, price: 8500000, total: 42500000 },
+      { name: 'Mouse Wireless', qty: 10, price: 150000, total: 1500000 },
+    ],
   },
   {
     id: '2',
@@ -65,8 +74,14 @@ const mockInvoices = [
     invoice_date: '2024-01-18',
     due_date: '2024-02-18',
     status: 'partial',
+    subtotal: 22522523,
+    tax_amount: 2477477,
+    discount_amount: 0,
     total_amount: 25000000,
     paid_amount: 10000000,
+    items: [
+      { name: 'Printer Epson L3150', qty: 10, price: 2500000, total: 25000000 },
+    ],
   },
   {
     id: '3',
@@ -77,8 +92,15 @@ const mockInvoices = [
     invoice_date: '2024-01-20',
     due_date: '2024-01-25',
     status: 'overdue',
+    subtotal: 7657658,
+    tax_amount: 842342,
+    discount_amount: 0,
     total_amount: 8500000,
     paid_amount: 0,
+    items: [
+      { name: 'Monitor LG 24"', qty: 3, price: 2500000, total: 7500000 },
+      { name: 'Keyboard Mechanical', qty: 5, price: 500000, total: 2500000 },
+    ],
   },
   {
     id: '4',
@@ -89,8 +111,14 @@ const mockInvoices = [
     invoice_date: '2024-01-22',
     due_date: '2024-02-22',
     status: 'sent',
+    subtotal: 10810811,
+    tax_amount: 1189189,
+    discount_amount: 0,
     total_amount: 12000000,
     paid_amount: 0,
+    items: [
+      { name: 'Webcam HD 1080p', qty: 20, price: 600000, total: 12000000 },
+    ],
   },
 ];
 
@@ -103,6 +131,16 @@ const statusColors: Record<string, string> = {
   cancelled: 'bg-muted text-muted-foreground',
 };
 
+const PAYMENT_METHODS = [
+  { value: 'cash', labelId: 'Tunai', labelEn: 'Cash' },
+  { value: 'bank_transfer', labelId: 'Transfer Bank', labelEn: 'Bank Transfer' },
+  { value: 'credit_card', labelId: 'Kartu Kredit', labelEn: 'Credit Card' },
+  { value: 'debit_card', labelId: 'Kartu Debit', labelEn: 'Debit Card' },
+  { value: 'e_wallet', labelId: 'E-Wallet', labelEn: 'E-Wallet' },
+  { value: 'qris', labelId: 'QRIS', labelEn: 'QRIS' },
+  { value: 'giro', labelId: 'Giro', labelEn: 'Giro' },
+];
+
 export default function Invoices() {
   const { t, formatCurrency, formatDate, language } = useLanguage();
   const { toast } = useToast();
@@ -110,8 +148,10 @@ export default function Invoices() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('bank_transfer');
 
   const getStatusLabel = (status: string) => {
     const labels: Record<string, Record<string, string>> = {
@@ -137,7 +177,13 @@ export default function Invoices() {
   const handleRecordPayment = (invoice: any) => {
     setSelectedInvoice(invoice);
     setPaymentAmount('');
+    setPaymentMethod('bank_transfer');
     setPaymentDialogOpen(true);
+  };
+
+  const handlePreviewInvoice = (invoice: any) => {
+    setSelectedInvoice(invoice);
+    setPreviewDialogOpen(true);
   };
 
   const handleSavePayment = () => {
@@ -146,6 +192,22 @@ export default function Invoices() {
       description: language === 'id' ? 'Pembayaran berhasil dicatat' : 'Payment recorded successfully',
     });
     setPaymentDialogOpen(false);
+  };
+
+  const handlePrint = () => {
+    toast({
+      title: language === 'id' ? 'Mencetak...' : 'Printing...',
+      description: language === 'id' ? 'Faktur sedang dicetak' : 'Invoice is being printed',
+    });
+    window.print();
+  };
+
+  const handleDownload = () => {
+    toast({
+      title: language === 'id' ? 'Mengunduh...' : 'Downloading...',
+      description: language === 'id' ? 'Faktur sedang diunduh' : 'Invoice is being downloaded',
+    });
+    setPreviewDialogOpen(false);
   };
 
   // Summary calculations
@@ -157,7 +219,7 @@ export default function Invoices() {
   return (
     <MainLayout title={t('invoices.title')}>
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -165,10 +227,10 @@ export default function Invoices() {
                 <FileText className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   {language === 'id' ? 'Total Faktur' : 'Total Invoices'}
                 </p>
-                <p className="text-2xl font-bold">{totalInvoices}</p>
+                <p className="text-xl sm:text-2xl font-bold">{totalInvoices}</p>
               </div>
             </div>
           </CardContent>
@@ -180,10 +242,10 @@ export default function Invoices() {
                 <CheckCircle className="w-5 h-5 text-success" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   {language === 'id' ? 'Total Dibayar' : 'Total Paid'}
                 </p>
-                <p className="text-xl font-bold">{formatCurrency(totalPaid)}</p>
+                <p className="text-lg sm:text-xl font-bold">{formatCurrency(totalPaid)}</p>
               </div>
             </div>
           </CardContent>
@@ -195,10 +257,10 @@ export default function Invoices() {
                 <Clock className="w-5 h-5 text-warning" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   {language === 'id' ? 'Sisa Piutang' : 'Outstanding'}
                 </p>
-                <p className="text-xl font-bold">{formatCurrency(totalOutstanding)}</p>
+                <p className="text-lg sm:text-xl font-bold">{formatCurrency(totalOutstanding)}</p>
               </div>
             </div>
           </CardContent>
@@ -210,10 +272,10 @@ export default function Invoices() {
                 <AlertCircle className="w-5 h-5 text-destructive" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   {language === 'id' ? 'Jatuh Tempo' : 'Overdue'}
                 </p>
-                <p className="text-2xl font-bold">
+                <p className="text-xl sm:text-2xl font-bold">
                   {mockInvoices.filter(inv => inv.status === 'overdue').length}
                 </p>
               </div>
@@ -234,7 +296,7 @@ export default function Invoices() {
           />
         </div>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="w-full sm:w-40">
             <SelectValue placeholder={language === 'id' ? 'Tipe' : 'Type'} />
           </SelectTrigger>
           <SelectContent>
@@ -244,7 +306,7 @@ export default function Invoices() {
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="w-full sm:w-40">
             <SelectValue placeholder={t('common.status')} />
           </SelectTrigger>
           <SelectContent>
@@ -258,8 +320,47 @@ export default function Invoices() {
         </Select>
       </div>
 
-      {/* Invoices Table */}
-      <Card>
+      {/* Mobile Card View */}
+      <div className="block lg:hidden space-y-3 mb-6">
+        {filteredInvoices.map((invoice) => (
+          <Card key={invoice.id}>
+            <CardContent className="p-4 space-y-3">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="font-medium">{invoice.invoice_number}</p>
+                  <p className="text-sm text-muted-foreground">{invoice.customer_supplier_name}</p>
+                </div>
+                <Badge className={statusColors[invoice.status]}>
+                  {getStatusLabel(invoice.status)}
+                </Badge>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">{language === 'id' ? 'Jatuh tempo:' : 'Due:'}</span>
+                <span>{formatDate(invoice.due_date)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Total:</span>
+                <span className="font-bold">{formatCurrency(invoice.total_amount)}</span>
+              </div>
+              <div className="flex gap-2 pt-2 border-t">
+                <Button variant="ghost" size="sm" onClick={() => handlePreviewInvoice(invoice)}>
+                  <Eye className="w-4 h-4 mr-1" />
+                  {language === 'id' ? 'Lihat' : 'View'}
+                </Button>
+                {invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
+                  <Button variant="outline" size="sm" onClick={() => handleRecordPayment(invoice)}>
+                    <CreditCard className="w-4 h-4 mr-1" />
+                    {language === 'id' ? 'Bayar' : 'Pay'}
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Desktop Table View */}
+      <Card className="hidden lg:block">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5" />
@@ -308,11 +409,8 @@ export default function Invoices() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="icon">
+                      <Button variant="ghost" size="icon" onClick={() => handlePreviewInvoice(invoice)}>
                         <Eye className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon">
-                        <Download className="w-4 h-4" />
                       </Button>
                       {invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
                         <Button 
@@ -333,6 +431,123 @@ export default function Invoices() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Invoice Preview Modal */}
+      <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              <span>{language === 'id' ? 'Preview Faktur' : 'Invoice Preview'}</span>
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedInvoice && (
+            <div className="space-y-6 p-4 bg-white rounded-lg border">
+              {/* Invoice Header */}
+              <div className="flex justify-between items-start">
+                <div>
+                  <h2 className="text-2xl font-bold text-foreground">FAKTUR / INVOICE</h2>
+                  <p className="text-lg font-semibold text-primary">{selectedInvoice.invoice_number}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-semibold">PT. Nama Perusahaan</p>
+                  <p className="text-sm text-muted-foreground">Jl. Contoh No. 123</p>
+                  <p className="text-sm text-muted-foreground">Jakarta 12345</p>
+                </div>
+              </div>
+
+              {/* Customer/Supplier Info */}
+              <div className="grid grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedInvoice.type === 'sales' 
+                      ? (language === 'id' ? 'Kepada:' : 'Bill To:')
+                      : (language === 'id' ? 'Dari:' : 'From:')}
+                  </p>
+                  <p className="font-semibold">{selectedInvoice.customer_supplier_name}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground">{language === 'id' ? 'Tanggal:' : 'Date:'}</p>
+                  <p>{formatDate(selectedInvoice.invoice_date)}</p>
+                  <p className="text-sm text-muted-foreground mt-2">{language === 'id' ? 'Jatuh Tempo:' : 'Due Date:'}</p>
+                  <p>{formatDate(selectedInvoice.due_date)}</p>
+                </div>
+              </div>
+
+              {/* Items Table */}
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{language === 'id' ? 'Item' : 'Item'}</TableHead>
+                    <TableHead className="text-right">{language === 'id' ? 'Qty' : 'Qty'}</TableHead>
+                    <TableHead className="text-right">{language === 'id' ? 'Harga' : 'Price'}</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {selectedInvoice.items?.map((item: any, idx: number) => (
+                    <TableRow key={idx}>
+                      <TableCell>{item.name}</TableCell>
+                      <TableCell className="text-right">{item.qty}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(item.price)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(item.total)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {/* Summary */}
+              <div className="space-y-2 border-t pt-4">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Subtotal:</span>
+                  <span>{formatCurrency(selectedInvoice.subtotal)}</span>
+                </div>
+                {selectedInvoice.discount_amount > 0 && (
+                  <div className="flex justify-between text-destructive">
+                    <span>{language === 'id' ? 'Diskon:' : 'Discount:'}</span>
+                    <span>-{formatCurrency(selectedInvoice.discount_amount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">PPN (11%):</span>
+                  <span>{formatCurrency(selectedInvoice.tax_amount)}</span>
+                </div>
+                <div className="flex justify-between text-lg font-bold border-t pt-2">
+                  <span>Total:</span>
+                  <span>{formatCurrency(selectedInvoice.total_amount)}</span>
+                </div>
+                {selectedInvoice.paid_amount > 0 && (
+                  <>
+                    <div className="flex justify-between text-success">
+                      <span>{language === 'id' ? 'Sudah Dibayar:' : 'Paid:'}</span>
+                      <span>{formatCurrency(selectedInvoice.paid_amount)}</span>
+                    </div>
+                    <div className="flex justify-between font-semibold">
+                      <span>{language === 'id' ? 'Sisa:' : 'Remaining:'}</span>
+                      <span>{formatCurrency(selectedInvoice.total_amount - selectedInvoice.paid_amount)}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setPreviewDialogOpen(false)}>
+              <X className="w-4 h-4 mr-2" />
+              {language === 'id' ? 'Tutup' : 'Close'}
+            </Button>
+            <Button variant="outline" onClick={handleDownload}>
+              <Download className="w-4 h-4 mr-2" />
+              {language === 'id' ? 'Unduh PDF' : 'Download PDF'}
+            </Button>
+            <Button onClick={handlePrint}>
+              <Printer className="w-4 h-4 mr-2" />
+              {language === 'id' ? 'Cetak' : 'Print'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Record Payment Dialog */}
       <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
@@ -361,15 +576,16 @@ export default function Invoices() {
             </div>
             <div className="space-y-2">
               <Label>{t('payments.method')}</Label>
-              <Select defaultValue="bank_transfer">
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="cash">{t('payments.cash')}</SelectItem>
-                  <SelectItem value="bank_transfer">{t('payments.bankTransfer')}</SelectItem>
-                  <SelectItem value="credit_card">{t('payments.creditCard')}</SelectItem>
-                  <SelectItem value="check">{t('payments.check')}</SelectItem>
+                  {PAYMENT_METHODS.map((method) => (
+                    <SelectItem key={method.value} value={method.value}>
+                      {language === 'id' ? method.labelId : method.labelEn}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -382,7 +598,7 @@ export default function Invoices() {
               <Input placeholder={language === 'id' ? 'No. transfer/cek' : 'Transfer/Check no.'} />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>
               {t('common.cancel')}
             </Button>
