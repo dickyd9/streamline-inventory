@@ -30,7 +30,6 @@ interface ProductDialogProps {
 }
 
 const categories = ['Electronics', 'Furniture', 'Stationery', 'Office Supplies', 'Beverages'];
-const suppliers = ['TechSupply Co.', 'Office Plus', 'LightWorld', 'Paper House', 'Fresh Supplies'];
 
 export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDialogProps) {
   const { language, formatCurrency } = useLanguage();
@@ -46,7 +45,6 @@ export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDi
     costPrice: 0,
     sellingPrice: 0,
     unit: 'pcs' as UnitType,
-    supplier: '',
     imageUrl: '',
   });
   
@@ -64,7 +62,6 @@ export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDi
         costPrice: product.costPrice,
         sellingPrice: product.sellingPrice,
         unit: product.unit,
-        supplier: product.supplier,
         imageUrl: (product as any).imageUrl || '',
       });
       setPreviewUrl((product as any).imageUrl || '');
@@ -78,7 +75,6 @@ export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDi
         costPrice: 0,
         sellingPrice: 0,
         unit: 'pcs',
-        supplier: '',
         imageUrl: '',
       });
       setPreviewUrl('');
@@ -253,23 +249,7 @@ export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDi
                     <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                   ))}
                 </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="supplier">{language === 'id' ? 'Pemasok' : 'Supplier'}</Label>
-              <Select
-                value={formData.supplier}
-                onValueChange={(value) => setFormData({ ...formData, supplier: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={language === 'id' ? 'Pilih pemasok' : 'Select supplier'} />
-                </SelectTrigger>
-                <SelectContent className="bg-popover">
-                  {suppliers.map((sup) => (
-                    <SelectItem key={sup} value={sup}>{sup}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            </Select>
             </div>
           </div>
 

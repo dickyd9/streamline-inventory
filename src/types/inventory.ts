@@ -27,8 +27,9 @@ export interface Product {
   costPrice: number; // weighted average cost per base unit
   sellingPrice: number; // selling price per base unit
   unit: UnitType; // base unit for this product
-  supplier: string;
+  supplier?: string; // optional - supplier now handled via purchase orders
   lastUpdated: string;
+  imageUrl?: string;
 }
 
 export interface Supplier {
