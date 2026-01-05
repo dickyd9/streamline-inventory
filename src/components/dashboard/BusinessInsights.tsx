@@ -1,17 +1,20 @@
 import { mockSalesOrders, mockProducts, mockPurchaseOrders, mockStockMovements } from '@/data/mockData';
-import { TrendingUp, TrendingDown, AlertCircle, DollarSign, Package, ShoppingBag, CheckCircle } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertCircle, DollarSign, Package, ShoppingBag, CheckCircle, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useNavigate } from 'react-router-dom';
 
 interface Insight {
   type: 'success' | 'warning' | 'info' | 'danger';
   icon: React.ReactNode;
   title: string;
   description: string;
+  link?: string;
 }
 
 export function BusinessInsights() {
   const { formatCurrency, language } = useLanguage();
+  const navigate = useNavigate();
   const insights: Insight[] = [];
 
   // Calculate key metrics
@@ -43,6 +46,7 @@ export function BusinessInsights() {
         ? `${outOfStockItems.length} produk habis stok`
         : `${outOfStockItems.length} product${outOfStockItems.length > 1 ? 's' : ''} out of stock`,
       description: outOfStockItems.map(p => p.name).slice(0, 2).join(', ') + (outOfStockItems.length > 2 ? ` +${outOfStockItems.length - 2} lainnya` : ''),
+      link: '/inventory',
     });
   }
 
@@ -56,6 +60,7 @@ export function BusinessInsights() {
       description: language === 'id' 
         ? 'Pertimbangkan membuat pesanan pembelian'
         : 'Consider creating purchase orders to replenish stock',
+      link: '/purchases',
     });
   }
 
@@ -69,6 +74,7 @@ export function BusinessInsights() {
       description: language === 'id'
         ? `${unpaidOrders.length} pesanan menunggu pembayaran`
         : `${unpaidOrders.length} order${unpaidOrders.length > 1 ? 's' : ''} awaiting payment`,
+      link: '/invoices',
     });
   }
 
@@ -82,6 +88,7 @@ export function BusinessInsights() {
       description: language === 'id'
         ? 'Strategi harga Anda berjalan baik'
         : 'Your pricing strategy is performing well',
+      link: '/reports',
     });
   } else if (avgMarginPct > 0 && avgMarginPct < 20) {
     insights.push({
@@ -93,6 +100,7 @@ export function BusinessInsights() {
       description: language === 'id'
         ? 'Pertimbangkan untuk meninjau harga atau biaya Anda'
         : 'Consider reviewing your pricing or costs',
+      link: '/reports',
     });
   }
 
@@ -106,6 +114,7 @@ export function BusinessInsights() {
       description: language === 'id'
         ? 'Pengisian stok sedang dalam perjalanan'
         : 'Stock replenishment on the way',
+      link: '/purchases',
     });
   }
 
@@ -119,6 +128,7 @@ export function BusinessInsights() {
       description: language === 'id'
         ? `Dari ${completedSales.length} penjualan selesai`
         : `From ${completedSales.length} completed sale${completedSales.length > 1 ? 's' : ''}`,
+      link: '/sales',
     });
   }
 
@@ -127,6 +137,12 @@ export function BusinessInsights() {
     warning: 'bg-warning/10 border-warning/20 text-warning',
     info: 'bg-primary/10 border-primary/20 text-primary',
     danger: 'bg-destructive/10 border-destructive/20 text-destructive',
+  };
+
+  const handleClick = (link?: string) => {
+    if (link) {
+      navigate(link);
+    }
   };
 
   return (
@@ -145,16 +161,21 @@ export function BusinessInsights() {
           {insights.slice(0, 5).map((insight, index) => (
             <div 
               key={index} 
+              onClick={() => handleClick(insight.link)}
               className={cn(
-                "p-3 rounded-lg border flex items-start gap-3",
-                typeStyles[insight.type]
+                "p-3 rounded-lg border flex items-start gap-3 transition-all",
+                typeStyles[insight.type],
+                insight.link && "cursor-pointer hover:opacity-80 hover:scale-[1.01]"
               )}
             >
               <div className="mt-0.5">{insight.icon}</div>
-              <div>
+              <div className="flex-1">
                 <p className="font-medium text-sm">{insight.title}</p>
                 <p className="text-xs opacity-80">{insight.description}</p>
               </div>
+              {insight.link && (
+                <ChevronRight className="w-4 h-4 mt-0.5 opacity-60" />
+              )}
             </div>
           ))}
         </div>
