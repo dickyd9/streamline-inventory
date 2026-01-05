@@ -19,110 +19,67 @@ import {
   CreditCard,
   Banknote,
   Smartphone,
-  X
+  X,
+  Scissors,
+  Package,
+  ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { mockProducts, mockCustomers } from '@/data/mockData';
+import { mockProducts, mockCustomers, mockPOSTransactions, mockEmployees } from '@/data/mockData';
 import { useFeatureFlags } from '@/contexts/FeatureFlagsContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-
-interface CartItem {
-  productId: string;
-  productName: string;
-  quantity: number;
-  price: number;
-  total: number;
-}
-
-interface POSTransaction {
-  id: string;
-  transactionNumber: string;
-  items: CartItem[];
-  subtotal: number;
-  tax: number;
-  total: number;
-  status: 'draft' | 'in_progress' | 'completed';
-  customerId?: string;
-  customerName?: string;
-  paymentMethod?: string;
-  paidAmount: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// Mock transactions for today
-const mockTransactions: POSTransaction[] = [
-  {
-    id: '1',
-    transactionNumber: 'POS-2026-001',
-    items: [{ productId: '1', productName: 'Wireless Mouse', quantity: 2, price: 35.99, total: 71.98 }],
-    subtotal: 71.98,
-    tax: 7.20,
-    total: 79.18,
-    status: 'completed',
-    customerName: 'Walk-in Customer',
-    paymentMethod: 'cash',
-    paidAmount: 79.18,
-    createdAt: '2026-01-05T09:30:00',
-    updatedAt: '2026-01-05T09:35:00',
-  },
-  {
-    id: '2',
-    transactionNumber: 'POS-2026-002',
-    items: [
-      { productId: '2', productName: 'USB-C Cable', quantity: 3, price: 15.99, total: 47.97 },
-      { productId: '5', productName: 'Notebook A5', quantity: 5, price: 5.99, total: 29.95 },
-    ],
-    subtotal: 77.92,
-    tax: 7.79,
-    total: 85.71,
-    status: 'in_progress',
-    customerId: '1',
-    customerName: 'Customer Alpha',
-    paidAmount: 0,
-    createdAt: '2026-01-05T10:15:00',
-    updatedAt: '2026-01-05T10:15:00',
-  },
-  {
-    id: '3',
-    transactionNumber: 'POS-2026-003',
-    items: [{ productId: '8', productName: 'Keyboard Mechanical', quantity: 1, price: 149.99, total: 149.99 }],
-    subtotal: 149.99,
-    tax: 15.00,
-    total: 164.99,
-    status: 'draft',
-    paidAmount: 0,
-    createdAt: '2026-01-05T11:00:00',
-    updatedAt: '2026-01-05T11:00:00',
-  },
-];
-
-const categories = ['Semua', 'Electronics', 'Furniture', 'Stationery', 'Beverages'];
+import { POSTransaction, POSCartItem, POSPayment, Product } from '@/types/inventory';
+import { TransactionCard } from '@/components/pos/TransactionCard';
+import { ServiceCompletionDialog } from '@/components/pos/ServiceCompletionDialog';
+import { ReceiptDialog } from '@/components/pos/ReceiptDialog';
 
 export default function POS() {
   const { isEnabled } = useFeatureFlags();
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<POSCartItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('Semua');
   const [searchQuery, setSearchQuery] = useState('');
-  const [transactions] = useState<POSTransaction[]>(mockTransactions);
+  const [transactions, setTransactions] = useState<POSTransaction[]>(mockPOSTransactions);
   const [selectedCustomer, setSelectedCustomer] = useState<string>('');
   const [customerName, setCustomerName] = useState('');
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<string>('cash');
+  const [payments, setPayments] = useState<POSPayment[]>([]);
   const [paidAmount, setPaidAmount] = useState<string>('');
+  const [activeTransactionView, setActiveTransactionView] = useState<'draft' | 'in_progress' | 'completed'>('draft');
+  const [showServiceDialog, setShowServiceDialog] = useState(false);
+  const [pendingCompleteTransaction, setPendingCompleteTransaction] = useState<POSTransaction | null>(null);
+  const [showReceiptDialog, setShowReceiptDialog] = useState(false);
+  const [completedTransaction, setCompletedTransaction] = useState<POSTransaction | null>(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<POSTransaction | null>(null);
+
+  // Filter items based on business type flags
+  const availableProducts = useMemo(() => {
+    return mockProducts.filter(product => {
+      if (product.itemType === 'service' && !isEnabled('servicesBusiness')) return false;
+      if (product.itemType === 'product' && !isEnabled('productsBusiness')) return false;
+      return true;
+    });
+  }, [isEnabled]);
+
+  // Get categories from available products
+  const categories = useMemo(() => {
+    const cats = [...new Set(availableProducts.map(p => p.category))];
+    return ['Semua', ...cats];
+  }, [availableProducts]);
 
   // Filter products
   const filteredProducts = useMemo(() => {
-    return mockProducts.filter(product => {
+    return availableProducts.filter(product => {
       const matchesCategory = selectedCategory === 'Semua' || product.category === selectedCategory;
       const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         product.sku.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch && product.quantity > 0;
+      const hasStock = product.itemType === 'service' || product.quantity > 0;
+      return matchesCategory && matchesSearch && hasStock;
     });
-  }, [selectedCategory, searchQuery]);
+  }, [selectedCategory, searchQuery, availableProducts]);
 
   // Cart calculations
   const cartSubtotal = cart.reduce((sum, item) => sum + item.total, 0);
@@ -130,23 +87,24 @@ export default function POS() {
   const cartTotal = cartSubtotal + cartTax;
 
   // Transaction counts
-  const draftCount = transactions.filter(t => t.status === 'draft').length;
-  const inProgressCount = transactions.filter(t => t.status === 'in_progress').length;
-  const completedCount = transactions.filter(t => t.status === 'completed').length;
+  const draftTransactions = transactions.filter(t => t.status === 'draft');
+  const inProgressTransactions = transactions.filter(t => t.status === 'in_progress');
+  const completedTransactions = transactions.filter(t => t.status === 'completed');
 
-  const addToCart = (product: typeof mockProducts[0]) => {
+  const addToCart = (product: Product) => {
     setCart(prev => {
-      const existing = prev.find(item => item.productId === product.id);
+      const existing = prev.find(item => item.itemId === product.id);
       if (existing) {
         return prev.map(item => 
-          item.productId === product.id 
+          item.itemId === product.id 
             ? { ...item, quantity: item.quantity + 1, total: (item.quantity + 1) * item.price }
             : item
         );
       }
       return [...prev, {
-        productId: product.id,
-        productName: product.name,
+        itemId: product.id,
+        itemName: product.name,
+        itemType: product.itemType || 'product',
         quantity: 1,
         price: product.sellingPrice,
         total: product.sellingPrice,
@@ -154,27 +112,28 @@ export default function POS() {
     });
   };
 
-  const updateQuantity = (productId: string, delta: number) => {
+  const updateQuantity = (itemId: string, delta: number) => {
     setCart(prev => 
       prev.map(item => {
-        if (item.productId === productId) {
+        if (item.itemId === itemId) {
           const newQty = Math.max(0, item.quantity + delta);
           if (newQty === 0) return null;
           return { ...item, quantity: newQty, total: newQty * item.price };
         }
         return item;
-      }).filter(Boolean) as CartItem[]
+      }).filter(Boolean) as POSCartItem[]
     );
   };
 
-  const removeFromCart = (productId: string) => {
-    setCart(prev => prev.filter(item => item.productId !== productId));
+  const removeFromCart = (itemId: string) => {
+    setCart(prev => prev.filter(item => item.itemId !== itemId));
   };
 
   const clearCart = () => {
     setCart([]);
     setSelectedCustomer('');
     setCustomerName('');
+    setPayments([]);
   };
 
   const handlePayment = () => {
@@ -184,17 +143,47 @@ export default function POS() {
     }
     setShowPaymentDialog(true);
     setPaidAmount(cartTotal.toFixed(2));
+    setPayments([]);
   };
 
+  const addPayment = () => {
+    const amount = parseFloat(paidAmount) || 0;
+    if (amount <= 0) return;
+    
+    setPayments([...payments, { method: paymentMethod as 'cash' | 'transfer' | 'qris', amount }]);
+    setPaidAmount('');
+  };
+
+  const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+  const remainingAmount = cartTotal - totalPaid;
+
   const processPayment = () => {
-    const paid = parseFloat(paidAmount) || 0;
-    if (paid < cartTotal) {
+    if (totalPaid < cartTotal) {
       toast.error('Jumlah pembayaran kurang');
       return;
     }
 
-    const change = paid - cartTotal;
-    toast.success(`Pembayaran berhasil! Kembalian: Rp ${change.toFixed(2)}`);
+    const newTransaction: POSTransaction = {
+      id: Date.now().toString(),
+      transactionNumber: `POS-${new Date().getFullYear()}-${(transactions.length + 1).toString().padStart(3, '0')}`,
+      items: cart,
+      subtotal: cartSubtotal,
+      tax: cartTax,
+      discount: 0,
+      total: cartTotal,
+      status: 'draft',
+      customerId: selectedCustomer || undefined,
+      customerName: customerName || selectedCustomer ? mockCustomers.find(c => c.id === selectedCustomer)?.name : 'Walk-in',
+      paymentMethod: payments.length > 1 ? 'multi' : (payments[0]?.method || 'cash'),
+      payments,
+      paidAmount: totalPaid,
+      changeAmount: totalPaid - cartTotal,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    setTransactions([newTransaction, ...transactions]);
+    toast.success(`Pembayaran berhasil! Kembalian: Rp ${(totalPaid - cartTotal).toLocaleString()}`);
     setShowPaymentDialog(false);
     clearCart();
   };
@@ -204,8 +193,89 @@ export default function POS() {
       toast.error('Keranjang kosong');
       return;
     }
+
+    const newTransaction: POSTransaction = {
+      id: Date.now().toString(),
+      transactionNumber: `POS-${new Date().getFullYear()}-${(transactions.length + 1).toString().padStart(3, '0')}`,
+      items: cart,
+      subtotal: cartSubtotal,
+      tax: cartTax,
+      discount: 0,
+      total: cartTotal,
+      status: 'draft',
+      customerId: selectedCustomer || undefined,
+      customerName: customerName || (selectedCustomer ? mockCustomers.find(c => c.id === selectedCustomer)?.name : undefined),
+      payments: [],
+      paidAmount: 0,
+      changeAmount: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    setTransactions([newTransaction, ...transactions]);
     toast.success('Transaksi disimpan sebagai draft');
     clearCart();
+  };
+
+  const handleUpdateStatus = (transaction: POSTransaction, newStatus: POSTransaction['status']) => {
+    // If completing and has services, show service completion dialog
+    if (newStatus === 'completed') {
+      const serviceItems = transaction.items.filter(item => item.itemType === 'service');
+      if (serviceItems.length > 0 && isEnabled('servicesBusiness')) {
+        setPendingCompleteTransaction(transaction);
+        setShowServiceDialog(true);
+        return;
+      }
+    }
+
+    // Update status
+    setTransactions(prev => prev.map(t => 
+      t.id === transaction.id 
+        ? { ...t, status: newStatus, updatedAt: new Date().toISOString(), completedAt: newStatus === 'completed' ? new Date().toISOString() : undefined }
+        : t
+    ));
+    toast.success(`Status diubah ke ${newStatus === 'in_progress' ? 'Dalam Proses' : 'Selesai'}`);
+
+    if (newStatus === 'completed') {
+      const updated = { ...transaction, status: 'completed' as const, completedAt: new Date().toISOString() };
+      setCompletedTransaction(updated);
+      setShowReceiptDialog(true);
+    }
+  };
+
+  const handleServiceCompletion = (updatedItems: POSCartItem[]) => {
+    if (!pendingCompleteTransaction) return;
+
+    const updated: POSTransaction = {
+      ...pendingCompleteTransaction,
+      items: pendingCompleteTransaction.items.map(item => {
+        const updatedItem = updatedItems.find(u => u.itemId === item.itemId);
+        return updatedItem || item;
+      }),
+      status: 'completed',
+      updatedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+      completedBy: 'Kasir', // Would be actual user name
+    };
+
+    setTransactions(prev => prev.map(t => t.id === updated.id ? updated : t));
+    setShowServiceDialog(false);
+    setPendingCompleteTransaction(null);
+    setCompletedTransaction(updated);
+    setShowReceiptDialog(true);
+    toast.success('Transaksi selesai!');
+  };
+
+  const handleSelectTransaction = (transaction: POSTransaction) => {
+    // Load transaction into cart for editing
+    if (transaction.status === 'draft') {
+      setCart(transaction.items);
+      setCustomerName(transaction.customerName || '');
+      setSelectedCustomer(transaction.customerId || '');
+      // Remove from transactions temporarily
+      setTransactions(prev => prev.filter(t => t.id !== transaction.id));
+      toast.info('Transaksi dimuat ke keranjang');
+    }
   };
 
   if (!isEnabled('pos')) {
@@ -227,41 +297,84 @@ export default function POS() {
       <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-8rem)]">
         {/* Left: Products */}
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Today's Transactions Summary */}
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            <Card className="p-3">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-muted">
-                  <FileText className="w-4 h-4 text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Draft</p>
-                  <p className="text-lg font-semibold">{draftCount}</p>
-                </div>
-              </div>
-            </Card>
-            <Card className="p-3">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-warning/10">
-                  <Clock className="w-4 h-4 text-warning" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">In Progress</p>
-                  <p className="text-lg font-semibold">{inProgressCount}</p>
-                </div>
-              </div>
-            </Card>
-            <Card className="p-3">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-success/10">
-                  <CheckCircle2 className="w-4 h-4 text-success" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Selesai</p>
-                  <p className="text-lg font-semibold">{completedCount}</p>
-                </div>
-              </div>
-            </Card>
+          {/* Today's Transactions - Detailed Cards */}
+          <div className="mb-4">
+            <Tabs value={activeTransactionView} onValueChange={(v) => setActiveTransactionView(v as any)}>
+              <TabsList className="w-full grid grid-cols-3">
+                <TabsTrigger value="draft" className="gap-2">
+                  <FileText className="w-4 h-4" />
+                  Draft ({draftTransactions.length})
+                </TabsTrigger>
+                <TabsTrigger value="in_progress" className="gap-2">
+                  <Clock className="w-4 h-4" />
+                  Proses ({inProgressTransactions.length})
+                </TabsTrigger>
+                <TabsTrigger value="completed" className="gap-2">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Selesai ({completedTransactions.length})
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="draft" className="mt-3">
+                <ScrollArea className="h-32">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {draftTransactions.length === 0 ? (
+                      <p className="text-sm text-muted-foreground col-span-full text-center py-4">Tidak ada draft</p>
+                    ) : (
+                      draftTransactions.map(t => (
+                        <TransactionCard 
+                          key={t.id} 
+                          transaction={t} 
+                          onView={(t) => {}} 
+                          onUpdateStatus={handleUpdateStatus}
+                          onSelect={handleSelectTransaction}
+                        />
+                      ))
+                    )}
+                  </div>
+                </ScrollArea>
+              </TabsContent>
+              
+              <TabsContent value="in_progress" className="mt-3">
+                <ScrollArea className="h-32">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {inProgressTransactions.length === 0 ? (
+                      <p className="text-sm text-muted-foreground col-span-full text-center py-4">Tidak ada yang sedang diproses</p>
+                    ) : (
+                      inProgressTransactions.map(t => (
+                        <TransactionCard 
+                          key={t.id} 
+                          transaction={t} 
+                          onView={(t) => {}} 
+                          onUpdateStatus={handleUpdateStatus}
+                          onSelect={() => {}}
+                        />
+                      ))
+                    )}
+                  </div>
+                </ScrollArea>
+              </TabsContent>
+              
+              <TabsContent value="completed" className="mt-3">
+                <ScrollArea className="h-32">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {completedTransactions.slice(0, 6).length === 0 ? (
+                      <p className="text-sm text-muted-foreground col-span-full text-center py-4">Belum ada transaksi selesai</p>
+                    ) : (
+                      completedTransactions.slice(0, 6).map(t => (
+                        <TransactionCard 
+                          key={t.id} 
+                          transaction={t} 
+                          onView={(t) => { setCompletedTransaction(t); setShowReceiptDialog(true); }} 
+                          onUpdateStatus={() => {}}
+                          onSelect={() => { setCompletedTransaction(t); setShowReceiptDialog(true); }}
+                        />
+                      ))
+                    )}
+                  </div>
+                </ScrollArea>
+              </TabsContent>
+            </Tabs>
           </div>
 
           {/* Search & Categories */}
@@ -269,7 +382,7 @@ export default function POS() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Cari produk..."
+                placeholder="Cari produk atau jasa..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
@@ -293,12 +406,19 @@ export default function POS() {
                   {filteredProducts.map(product => (
                     <Card 
                       key={product.id}
-                      className="cursor-pointer hover:border-primary transition-colors"
+                      className={cn(
+                        "cursor-pointer hover:border-primary transition-colors",
+                        product.itemType === 'service' && "border-l-4 border-l-primary"
+                      )}
                       onClick={() => addToCart(product)}
                     >
                       <CardContent className="p-3">
                         <div className="aspect-square bg-muted rounded-lg mb-2 flex items-center justify-center">
-                          <ShoppingCart className="w-8 h-8 text-muted-foreground/50" />
+                          {product.itemType === 'service' ? (
+                            <Scissors className="w-8 h-8 text-primary/50" />
+                          ) : (
+                            <Package className="w-8 h-8 text-muted-foreground/50" />
+                          )}
                         </div>
                         <h4 className="font-medium text-sm truncate">{product.name}</h4>
                         <p className="text-xs text-muted-foreground">{product.sku}</p>
@@ -306,9 +426,15 @@ export default function POS() {
                           <span className="font-semibold text-primary">
                             Rp {product.sellingPrice.toLocaleString()}
                           </span>
-                          <Badge variant="secondary" className="text-xs">
-                            {product.quantity}
-                          </Badge>
+                          {product.itemType === 'product' ? (
+                            <Badge variant="secondary" className="text-xs">
+                              {product.quantity}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-xs">
+                              {product.duration}m
+                            </Badge>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -377,9 +503,15 @@ export default function POS() {
               ) : (
                 <div className="space-y-3">
                   {cart.map(item => (
-                    <div key={item.productId} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50">
+                    <div key={item.itemId} className={cn(
+                      "flex items-center gap-3 p-2 rounded-lg bg-muted/50",
+                      item.itemType === 'service' && "border-l-2 border-l-primary"
+                    )}>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{item.productName}</p>
+                        <div className="flex items-center gap-1">
+                          {item.itemType === 'service' && <Scissors className="w-3 h-3 text-primary" />}
+                          <p className="font-medium text-sm truncate">{item.itemName}</p>
+                        </div>
                         <p className="text-xs text-muted-foreground">
                           Rp {item.price.toLocaleString()} x {item.quantity}
                         </p>
@@ -389,7 +521,7 @@ export default function POS() {
                           variant="outline"
                           size="icon"
                           className="h-7 w-7"
-                          onClick={() => updateQuantity(item.productId, -1)}
+                          onClick={() => updateQuantity(item.itemId, -1)}
                         >
                           <Minus className="w-3 h-3" />
                         </Button>
@@ -398,7 +530,7 @@ export default function POS() {
                           variant="outline"
                           size="icon"
                           className="h-7 w-7"
-                          onClick={() => updateQuantity(item.productId, 1)}
+                          onClick={() => updateQuantity(item.itemId, 1)}
                         >
                           <Plus className="w-3 h-3" />
                         </Button>
@@ -406,7 +538,7 @@ export default function POS() {
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7 text-destructive"
-                          onClick={() => removeFromCart(item.productId)}
+                          onClick={() => removeFromCart(item.itemId)}
                         >
                           <X className="w-3 h-3" />
                         </Button>
@@ -459,53 +591,93 @@ export default function POS() {
             </div>
 
             {isEnabled('multiPayment') && (
-              <div className="space-y-2">
-                <Label>Metode Pembayaran</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  <Button
-                    variant={paymentMethod === 'cash' ? 'default' : 'outline'}
-                    className="flex flex-col gap-1 h-auto py-3"
-                    onClick={() => setPaymentMethod('cash')}
-                  >
-                    <Banknote className="w-5 h-5" />
-                    <span className="text-xs">Cash</span>
-                  </Button>
-                  <Button
-                    variant={paymentMethod === 'transfer' ? 'default' : 'outline'}
-                    className="flex flex-col gap-1 h-auto py-3"
-                    onClick={() => setPaymentMethod('transfer')}
-                  >
-                    <CreditCard className="w-5 h-5" />
-                    <span className="text-xs">Transfer</span>
-                  </Button>
-                  <Button
-                    variant={paymentMethod === 'qris' ? 'default' : 'outline'}
-                    className="flex flex-col gap-1 h-auto py-3"
-                    onClick={() => setPaymentMethod('qris')}
-                  >
-                    <Smartphone className="w-5 h-5" />
-                    <span className="text-xs">QRIS</span>
+              <>
+                <div className="space-y-2">
+                  <Label>Metode Pembayaran</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Button
+                      type="button"
+                      variant={paymentMethod === 'cash' ? 'default' : 'outline'}
+                      className="flex flex-col gap-1 h-auto py-3"
+                      onClick={() => setPaymentMethod('cash')}
+                    >
+                      <Banknote className="w-5 h-5" />
+                      <span className="text-xs">Tunai</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={paymentMethod === 'transfer' ? 'default' : 'outline'}
+                      className="flex flex-col gap-1 h-auto py-3"
+                      onClick={() => setPaymentMethod('transfer')}
+                    >
+                      <CreditCard className="w-5 h-5" />
+                      <span className="text-xs">Transfer</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={paymentMethod === 'qris' ? 'default' : 'outline'}
+                      className="flex flex-col gap-1 h-auto py-3"
+                      onClick={() => setPaymentMethod('qris')}
+                    >
+                      <Smartphone className="w-5 h-5" />
+                      <span className="text-xs">QRIS</span>
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    placeholder="Jumlah"
+                    value={paidAmount}
+                    onChange={(e) => setPaidAmount(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button onClick={addPayment} variant="secondary">
+                    <Plus className="w-4 h-4" />
                   </Button>
                 </div>
-              </div>
+
+                {payments.length > 0 && (
+                  <div className="space-y-2 p-3 bg-muted rounded-lg">
+                    {payments.map((p, idx) => (
+                      <div key={idx} className="flex justify-between text-sm">
+                        <span className="capitalize">{p.method}</span>
+                        <span>Rp {p.amount.toLocaleString()}</span>
+                      </div>
+                    ))}
+                    <div className="border-t pt-2 flex justify-between font-medium">
+                      <span>Total Dibayar</span>
+                      <span>Rp {totalPaid.toLocaleString()}</span>
+                    </div>
+                    {remainingAmount > 0 && (
+                      <div className="flex justify-between text-sm text-destructive">
+                        <span>Sisa</span>
+                        <span>Rp {remainingAmount.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {remainingAmount < 0 && (
+                      <div className="flex justify-between text-sm text-success">
+                        <span>Kembalian</span>
+                        <span>Rp {Math.abs(remainingAmount).toLocaleString()}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
             )}
 
-            <div className="space-y-2">
-              <Label>Jumlah Bayar</Label>
-              <Input
-                type="number"
-                value={paidAmount}
-                onChange={(e) => setPaidAmount(e.target.value)}
-                className="text-lg"
-              />
-            </div>
-
-            {parseFloat(paidAmount) >= cartTotal && (
-              <div className="flex justify-between p-3 rounded-lg bg-success/10 text-success">
-                <span>Kembalian</span>
-                <span className="font-semibold">
-                  Rp {(parseFloat(paidAmount) - cartTotal).toLocaleString()}
-                </span>
+            {!isEnabled('multiPayment') && (
+              <div className="space-y-2">
+                <Label>Jumlah Bayar</Label>
+                <Input
+                  type="number"
+                  value={paidAmount}
+                  onChange={(e) => {
+                    setPaidAmount(e.target.value);
+                    setPayments([{ method: 'cash', amount: parseFloat(e.target.value) || 0 }]);
+                  }}
+                />
               </div>
             )}
           </div>
@@ -513,12 +685,27 @@ export default function POS() {
             <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>
               Batal
             </Button>
-            <Button onClick={processPayment}>
+            <Button onClick={processPayment} disabled={totalPaid < cartTotal}>
               Proses Pembayaran
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Service Completion Dialog */}
+      <ServiceCompletionDialog
+        open={showServiceDialog}
+        onOpenChange={setShowServiceDialog}
+        serviceItems={pendingCompleteTransaction?.items.filter(i => i.itemType === 'service') || []}
+        onComplete={handleServiceCompletion}
+      />
+
+      {/* Receipt Dialog */}
+      <ReceiptDialog
+        open={showReceiptDialog}
+        onOpenChange={setShowReceiptDialog}
+        transaction={completedTransaction}
+      />
     </MainLayout>
   );
 }

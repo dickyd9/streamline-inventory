@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Product, UnitType, UNIT_OPTIONS } from '@/types/inventory';
+import { Product, UnitType, UNIT_OPTIONS, ItemType } from '@/types/inventory';
 import {
   Dialog,
   DialogContent,
@@ -21,6 +21,7 @@ import { ImagePlus, Trash2 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useFeatureFlags } from '@/contexts/FeatureFlagsContext';
 
 interface ProductDialogProps {
   open: boolean;
@@ -29,24 +30,31 @@ interface ProductDialogProps {
   onSave: (product: Omit<Product, 'id' | 'lastUpdated'> & { imageUrl?: string }) => void;
 }
 
-const categories = ['Electronics', 'Furniture', 'Stationery', 'Office Supplies', 'Beverages'];
+const productCategories = ['Electronics', 'Furniture', 'Stationery', 'Office Supplies', 'Beverages'];
+const serviceCategories = ['Salon', 'Spa', 'Consulting', 'Repair', 'Other Services'];
 
 export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDialogProps) {
   const { language, formatCurrency } = useLanguage();
   const { toast } = useToast();
+  const { isEnabled } = useFeatureFlags();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({
     name: '',
     sku: '',
     category: '',
+    itemType: 'product' as ItemType,
     quantity: 0,
     minStock: 0,
     costPrice: 0,
     sellingPrice: 0,
     unit: 'pcs' as UnitType,
     imageUrl: '',
+    duration: 30,
+    requiresEmployee: true,
   });
+  
+  const categories = formData.itemType === 'service' ? serviceCategories : productCategories;
   
   const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string>('');
@@ -57,25 +65,31 @@ export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDi
         name: product.name,
         sku: product.sku,
         category: product.category,
+        itemType: product.itemType || 'product',
         quantity: product.quantity,
         minStock: product.minStock,
         costPrice: product.costPrice,
         sellingPrice: product.sellingPrice,
         unit: product.unit,
-        imageUrl: (product as any).imageUrl || '',
+        imageUrl: product.imageUrl || '',
+        duration: product.duration || 30,
+        requiresEmployee: product.requiresEmployee ?? true,
       });
-      setPreviewUrl((product as any).imageUrl || '');
+      setPreviewUrl(product.imageUrl || '');
     } else {
       setFormData({
         name: '',
         sku: '',
         category: '',
+        itemType: 'product',
         quantity: 0,
         minStock: 0,
         costPrice: 0,
         sellingPrice: 0,
         unit: 'pcs',
         imageUrl: '',
+        duration: 30,
+        requiresEmployee: true,
       });
       setPreviewUrl('');
     }
@@ -149,7 +163,11 @@ export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDi
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    // For services, set quantity and minStock to 0
+    const dataToSave = formData.itemType === 'service' 
+      ? { ...formData, quantity: 0, minStock: 0 }
+      : formData;
+    onSave(dataToSave);
     onOpenChange(false);
   };
 
@@ -234,6 +252,25 @@ export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDi
             </div>
           </div>
 
+          {/* Item Type Selection */}
+          {(isEnabled('servicesBusiness') && isEnabled('productsBusiness')) && (
+            <div className="space-y-2">
+              <Label>{language === 'id' ? 'Tipe Item' : 'Item Type'}</Label>
+              <Select
+                value={formData.itemType}
+                onValueChange={(value: ItemType) => setFormData({ ...formData, itemType: value, category: '' })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  <SelectItem value="product">{language === 'id' ? 'Produk' : 'Product'}</SelectItem>
+                  <SelectItem value="service">{language === 'id' ? 'Jasa' : 'Service'}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="category">{language === 'id' ? 'Kategori' : 'Category'}</Label>
@@ -249,8 +286,19 @@ export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDi
                     <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                   ))}
                 </SelectContent>
-            </Select>
+              </Select>
             </div>
+            {formData.itemType === 'service' && (
+              <div className="space-y-2">
+                <Label>{language === 'id' ? 'Durasi (menit)' : 'Duration (min)'}</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={formData.duration}
+                  onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -303,30 +351,33 @@ export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDi
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="quantity">{language === 'id' ? 'Stok Saat Ini' : 'Current Stock'}</Label>
-              <Input
-                id="quantity"
-                type="number"
-                min="0"
-                value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
-                required
-              />
+          {/* Stock fields only for products */}
+          {formData.itemType === 'product' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="quantity">{language === 'id' ? 'Stok Saat Ini' : 'Current Stock'}</Label>
+                <Input
+                  id="quantity"
+                  type="number"
+                  min="0"
+                  value={formData.quantity}
+                  onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="minStock">{language === 'id' ? 'Stok Minimum' : 'Min Stock Level'}</Label>
+                <Input
+                  id="minStock"
+                  type="number"
+                  min="0"
+                  value={formData.minStock}
+                  onChange={(e) => setFormData({ ...formData, minStock: parseInt(e.target.value) || 0 })}
+                  required
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="minStock">{language === 'id' ? 'Stok Minimum' : 'Min Stock Level'}</Label>
-              <Input
-                id="minStock"
-                type="number"
-                min="0"
-                value={formData.minStock}
-                onChange={(e) => setFormData({ ...formData, minStock: parseInt(e.target.value) || 0 })}
-                required
-              />
-            </div>
-          </div>
+          )}
 
           <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

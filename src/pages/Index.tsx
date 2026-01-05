@@ -7,12 +7,15 @@ import { AdvancedCharts } from '@/components/dashboard/AdvancedCharts';
 import { TopSellingProducts } from '@/components/dashboard/TopSellingProducts';
 import { BusinessInsights } from '@/components/dashboard/BusinessInsights';
 import { FinancialSummary } from '@/components/dashboard/FinancialSummary';
+import { TopEmployees } from '@/components/dashboard/TopEmployees';
+import { RecentTransactions } from '@/components/dashboard/RecentTransactions';
 import { mockProducts, mockPurchaseOrders, mockSuppliers, mockSalesOrders } from '@/data/mockData';
 import { Package, ShoppingCart, AlertTriangle, DollarSign, TrendingUp } from 'lucide-react';
+import { useFeatureFlags } from '@/contexts/FeatureFlagsContext';
 
 const Dashboard = () => {
   const [dateFilter, setDateFilter] = useState('month');
-  
+  const { isEnabled } = useFeatureFlags();
   const totalProducts = mockProducts.length;
   const lowStockCount = mockProducts.filter(p => p.quantity <= p.minStock).length;
   const pendingOrders = mockPurchaseOrders.filter(o => o.status === 'pending').length;
@@ -83,7 +86,7 @@ const Dashboard = () => {
       </div>
 
       {/* Bottom row - Lists */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div>
           <TopSellingProducts />
         </div>
@@ -91,7 +94,10 @@ const Dashboard = () => {
           <LowStockAlert />
         </div>
         <div>
-          <RecentOrders />
+          <TopEmployees />
+        </div>
+        <div>
+          <RecentTransactions />
         </div>
       </div>
     </MainLayout>
