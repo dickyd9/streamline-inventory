@@ -2,7 +2,7 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { RecentOrders } from '@/components/dashboard/RecentOrders';
 import { LowStockAlert } from '@/components/dashboard/LowStockAlert';
-import { InventoryChart } from '@/components/dashboard/InventoryChart';
+import { AdvancedCharts } from '@/components/dashboard/AdvancedCharts';
 import { TopSellingProducts } from '@/components/dashboard/TopSellingProducts';
 import { BusinessInsights } from '@/components/dashboard/BusinessInsights';
 import { mockProducts, mockPurchaseOrders, mockSuppliers, mockSalesOrders } from '@/data/mockData';
@@ -66,7 +66,7 @@ const Dashboard = () => {
       {/* Top row - Charts and insights */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <div className="lg:col-span-2">
-          <InventoryChart />
+          <AdvancedCharts />
         </div>
         <div>
           <BusinessInsights />
