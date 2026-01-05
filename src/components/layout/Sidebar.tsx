@@ -17,53 +17,71 @@ import {
   FileText,
   UsersRound,
   History,
-  Receipt
+  Receipt,
+  Store
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useState, createContext, useContext } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useFeatureFlags } from '@/contexts/FeatureFlagsContext';
 
 // Context to share collapsed state
 const SidebarContext = createContext({ collapsed: false });
 export const useSidebarState = () => useContext(SidebarContext);
+
+interface MenuItem {
+  icon?: typeof LayoutDashboard;
+  label: string;
+  path?: string;
+  type?: 'separator';
+  featureFlag?: string;
+}
 
 export function Sidebar() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const { t, language } = useLanguage();
   const { isOwnerOrAdmin } = usePermissions();
+  const { isEnabled } = useFeatureFlags();
 
-  const menuItems = [
+  const menuItems: MenuItem[] = [
     { icon: LayoutDashboard, label: t('nav.dashboard'), path: '/' },
+    { icon: Store, label: 'POS', path: '/pos', featureFlag: 'pos' },
     { type: 'separator', label: t('nav.catalog') },
     { icon: ClipboardList, label: t('nav.items'), path: '/items' },
     { type: 'separator', label: t('nav.stockManagement') },
-    { icon: Boxes, label: t('nav.inventory'), path: '/inventory' },
-    { icon: ArrowLeftRight, label: t('nav.stockMovements'), path: '/stock-movements' },
-    { icon: ClipboardCheck, label: t('nav.stocktaking'), path: '/stocktaking' },
+    { icon: Boxes, label: t('nav.inventory'), path: '/inventory', featureFlag: 'inventory' },
+    { icon: ArrowLeftRight, label: t('nav.stockMovements'), path: '/stock-movements', featureFlag: 'stockMovements' },
+    { icon: ClipboardCheck, label: t('nav.stocktaking'), path: '/stocktaking', featureFlag: 'stocktaking' },
     { type: 'separator', label: t('nav.orders') },
-    { icon: ShoppingCart, label: t('nav.purchaseOrders'), path: '/purchases' },
-    { icon: ShoppingBag, label: t('nav.salesOrders'), path: '/sales' },
-    { icon: FileText, label: t('nav.invoices'), path: '/invoices' },
+    { icon: ShoppingCart, label: t('nav.purchaseOrders'), path: '/purchases', featureFlag: 'purchaseOrders' },
+    { icon: ShoppingBag, label: t('nav.salesOrders'), path: '/sales', featureFlag: 'salesOrders' },
+    { icon: FileText, label: t('nav.invoices'), path: '/invoices', featureFlag: 'invoices' },
     { type: 'separator', label: language === 'id' ? 'Keuangan' : 'Finance' },
-    { icon: Receipt, label: language === 'id' ? 'Pengeluaran' : 'Expenses', path: '/expenses' },
+    { icon: Receipt, label: language === 'id' ? 'Pengeluaran' : 'Expenses', path: '/expenses', featureFlag: 'expenses' },
     { type: 'separator', label: t('nav.directory') },
-    { icon: Users, label: t('nav.suppliers'), path: '/suppliers' },
-    { icon: UserCircle, label: t('nav.customers'), path: '/customers' },
+    { icon: Users, label: t('nav.suppliers'), path: '/suppliers', featureFlag: 'suppliers' },
+    { icon: UserCircle, label: t('nav.customers'), path: '/customers', featureFlag: 'customers' },
     { type: 'separator', label: t('nav.analytics') },
-    { icon: BarChart3, label: t('nav.reports'), path: '/reports' },
+    { icon: BarChart3, label: t('nav.reports'), path: '/reports', featureFlag: 'reports' },
   ];
 
   // Add user management and activity history for owners/admins
   if (isOwnerOrAdmin) {
     menuItems.push(
       { type: 'separator', label: t('nav.userManagement') },
-      { icon: UsersRound, label: t('nav.userManagement'), path: '/users' },
-      { icon: History, label: language === 'id' ? 'Riwayat Aktivitas' : 'Activity History', path: '/activity' }
+      { icon: UsersRound, label: t('nav.userManagement'), path: '/users', featureFlag: 'userManagement' },
+      { icon: History, label: language === 'id' ? 'Riwayat Aktivitas' : 'Activity History', path: '/activity', featureFlag: 'activityHistory' }
     );
   }
+
+  // Filter items based on feature flags
+  const filteredItems = menuItems.filter(item => {
+    if (!item.featureFlag) return true;
+    return isEnabled(item.featureFlag as Parameters<typeof isEnabled>[0]);
+  });
 
   return (
     <SidebarContext.Provider value={{ collapsed }}>
@@ -95,7 +113,7 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto scrollbar-hide">
-        {menuItems.map((item, index) => {
+        {filteredItems.map((item, index) => {
           if (item.type === 'separator') {
             if (collapsed) return null;
             return (

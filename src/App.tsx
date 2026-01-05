@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { FeatureFlagsProvider } from "@/contexts/FeatureFlagsContext";
 import Index from "./pages/Index";
 import Items from "./pages/Items";
 import Inventory from "./pages/Inventory";
@@ -22,6 +23,7 @@ import Settings from "./pages/Settings";
 import Profile from "./pages/Profile";
 import UserManagement from "./pages/UserManagement";
 import ActivityHistory from "./pages/ActivityHistory";
+import POS from "./pages/POS";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -49,6 +51,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/auth" element={<Auth />} />
       <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+      <Route path="/pos" element={<ProtectedRoute><POS /></ProtectedRoute>} />
       <Route path="/items" element={<ProtectedRoute><Items /></ProtectedRoute>} />
       <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
       <Route path="/stock-movements" element={<ProtectedRoute><StockMovements /></ProtectedRoute>} />
@@ -73,7 +76,9 @@ function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
       <LanguageProvider>
-        {children}
+        <FeatureFlagsProvider>
+          {children}
+        </FeatureFlagsProvider>
       </LanguageProvider>
     </AuthProvider>
   );
