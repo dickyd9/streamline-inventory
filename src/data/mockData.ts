@@ -1,21 +1,23 @@
-import { Product, Supplier, PurchaseOrder, StockMovement, SalesOrder, Customer, Employee, POSTransaction } from '@/types/inventory';
+import { Product, Supplier, PurchaseOrder, StockMovement, SalesOrder, Customer, Employee, POSTransaction, calculateHPP } from '@/types/inventory';
 
 export const mockProducts: Product[] = [
-  { id: '1', name: 'Wireless Mouse', sku: 'WM-001', category: 'Electronics', itemType: 'product', quantity: 150, minStock: 50, costPrice: 25.00, sellingPrice: 35.99, unit: 'pcs', supplier: 'TechSupply Co.', lastUpdated: '2026-01-02' },
-  { id: '2', name: 'USB-C Cable', sku: 'UC-002', category: 'Electronics', itemType: 'product', quantity: 25, minStock: 100, costPrice: 8.00, sellingPrice: 15.99, unit: 'pcs', supplier: 'TechSupply Co.', lastUpdated: '2026-01-01' },
-  { id: '3', name: 'Office Chair', sku: 'OC-003', category: 'Furniture', itemType: 'product', quantity: 45, minStock: 20, costPrice: 150.00, sellingPrice: 249.99, unit: 'pcs', supplier: 'Office Plus', lastUpdated: '2025-12-28' },
-  { id: '4', name: 'Desk Lamp', sku: 'DL-004', category: 'Furniture', itemType: 'product', quantity: 0, minStock: 30, costPrice: 35.00, sellingPrice: 59.99, unit: 'pcs', supplier: 'LightWorld', lastUpdated: '2025-12-25' },
-  { id: '5', name: 'Notebook A5', sku: 'NB-005', category: 'Stationery', itemType: 'product', quantity: 500, minStock: 200, costPrice: 3.00, sellingPrice: 5.99, unit: 'pcs', supplier: 'Paper House', lastUpdated: '2026-01-03' },
-  { id: '6', name: 'Ballpoint Pen', sku: 'BP-006', category: 'Stationery', itemType: 'product', quantity: 960, minStock: 600, costPrice: 0.50, sellingPrice: 1.25, unit: 'pcs', supplier: 'Paper House', lastUpdated: '2026-01-02' },
-  { id: '7', name: 'Monitor Stand', sku: 'MS-007', category: 'Electronics', itemType: 'product', quantity: 35, minStock: 25, costPrice: 55.00, sellingPrice: 89.99, unit: 'pcs', supplier: 'TechSupply Co.', lastUpdated: '2025-12-30' },
-  { id: '8', name: 'Keyboard Mechanical', sku: 'KM-008', category: 'Electronics', itemType: 'product', quantity: 60, minStock: 40, costPrice: 85.00, sellingPrice: 149.99, unit: 'pcs', supplier: 'TechSupply Co.', lastUpdated: '2026-01-01' },
-  { id: '9', name: 'Printing Paper A4', sku: 'PP-009', category: 'Stationery', itemType: 'product', quantity: 200, minStock: 100, costPrice: 18.00, sellingPrice: 29.99, unit: 'pack', supplier: 'Paper House', lastUpdated: '2026-01-02' },
-  { id: '10', name: 'Bottled Water', sku: 'BW-010', category: 'Beverages', itemType: 'product', quantity: 480, minStock: 240, costPrice: 0.30, sellingPrice: 0.75, unit: 'pcs', supplier: 'Fresh Supplies', lastUpdated: '2026-01-03' },
-  // Services
-  { id: '11', name: 'Haircut - Basic', sku: 'SVC-001', category: 'Salon', itemType: 'service', quantity: 0, minStock: 0, costPrice: 10.00, sellingPrice: 50.00, unit: 'pcs', lastUpdated: '2026-01-03', duration: 30, requiresEmployee: true },
-  { id: '12', name: 'Hair Coloring', sku: 'SVC-002', category: 'Salon', itemType: 'service', quantity: 0, minStock: 0, costPrice: 30.00, sellingPrice: 150.00, unit: 'pcs', lastUpdated: '2026-01-03', duration: 90, requiresEmployee: true },
-  { id: '13', name: 'Manicure', sku: 'SVC-003', category: 'Spa', itemType: 'service', quantity: 0, minStock: 0, costPrice: 5.00, sellingPrice: 35.00, unit: 'pcs', lastUpdated: '2026-01-03', duration: 45, requiresEmployee: true },
-  { id: '14', name: 'Consultation', sku: 'SVC-004', category: 'Consulting', itemType: 'service', quantity: 0, minStock: 0, costPrice: 0, sellingPrice: 100.00, unit: 'pcs', lastUpdated: '2026-01-03', duration: 60, requiresEmployee: true },
+  // Products
+  { id: '1', name: 'Wireless Mouse', sku: 'WM-001', category: 'Electronics', itemType: 'product', quantity: 150, minStock: 50, costPrice: 25.00, sellingPrice: 35.99, unit: 'pcs', supplier: 'TechSupply Co.', lastUpdated: '2026-01-02', avgCostPrice: 25.00 },
+  { id: '2', name: 'USB-C Cable', sku: 'UC-002', category: 'Electronics', itemType: 'product', quantity: 25, minStock: 100, costPrice: 8.00, sellingPrice: 15.99, unit: 'pcs', supplier: 'TechSupply Co.', lastUpdated: '2026-01-01', avgCostPrice: 8.00 },
+  { id: '3', name: 'Office Chair', sku: 'OC-003', category: 'Furniture', itemType: 'product', quantity: 45, minStock: 20, costPrice: 150.00, sellingPrice: 249.99, unit: 'pcs', supplier: 'Office Plus', lastUpdated: '2025-12-28', avgCostPrice: 150.00 },
+  { id: '4', name: 'Desk Lamp', sku: 'DL-004', category: 'Furniture', itemType: 'product', quantity: 0, minStock: 30, costPrice: 35.00, sellingPrice: 59.99, unit: 'pcs', supplier: 'LightWorld', lastUpdated: '2025-12-25', avgCostPrice: 35.00 },
+  { id: '5', name: 'Notebook A5', sku: 'NB-005', category: 'Stationery', itemType: 'product', quantity: 500, minStock: 200, costPrice: 3.00, sellingPrice: 5.99, unit: 'pcs', supplier: 'Paper House', lastUpdated: '2026-01-03', avgCostPrice: 3.00 },
+  { id: '6', name: 'Ballpoint Pen', sku: 'BP-006', category: 'Stationery', itemType: 'product', quantity: 960, minStock: 600, costPrice: 0.50, sellingPrice: 1.25, unit: 'pcs', supplier: 'Paper House', lastUpdated: '2026-01-02', avgCostPrice: 0.50 },
+  { id: '7', name: 'Monitor Stand', sku: 'MS-007', category: 'Electronics', itemType: 'product', quantity: 35, minStock: 25, costPrice: 55.00, sellingPrice: 89.99, unit: 'pcs', supplier: 'TechSupply Co.', lastUpdated: '2025-12-30', avgCostPrice: 55.00 },
+  { id: '8', name: 'Keyboard Mechanical', sku: 'KM-008', category: 'Electronics', itemType: 'product', quantity: 60, minStock: 40, costPrice: 85.00, sellingPrice: 149.99, unit: 'pcs', supplier: 'TechSupply Co.', lastUpdated: '2026-01-01', avgCostPrice: 85.00 },
+  { id: '9', name: 'Printing Paper A4', sku: 'PP-009', category: 'Stationery', itemType: 'product', quantity: 200, minStock: 100, costPrice: 18.00, sellingPrice: 29.99, unit: 'pack', supplier: 'Paper House', lastUpdated: '2026-01-02', avgCostPrice: 18.00 },
+  { id: '10', name: 'Bottled Water', sku: 'BW-010', category: 'Beverages', itemType: 'product', quantity: 480, minStock: 240, costPrice: 0.30, sellingPrice: 0.75, unit: 'pcs', supplier: 'Fresh Supplies', lastUpdated: '2026-01-03', avgCostPrice: 0.30 },
+  // Services - no cost/selling price, only basePrice
+  { id: '11', name: 'Haircut - Basic', sku: 'SVC-001', category: 'Salon', itemType: 'service', quantity: 0, minStock: 0, costPrice: 0, sellingPrice: 0, basePrice: 50.00, unit: 'pcs', lastUpdated: '2026-01-03', requiresEmployee: true },
+  { id: '12', name: 'Hair Coloring', sku: 'SVC-002', category: 'Salon', itemType: 'service', quantity: 0, minStock: 0, costPrice: 0, sellingPrice: 0, basePrice: 150.00, unit: 'pcs', lastUpdated: '2026-01-03', requiresEmployee: true },
+  { id: '13', name: 'Manicure', sku: 'SVC-003', category: 'Spa', itemType: 'service', quantity: 0, minStock: 0, costPrice: 0, sellingPrice: 0, basePrice: 35.00, unit: 'pcs', lastUpdated: '2026-01-03', requiresEmployee: true },
+  { id: '14', name: 'Consultation', sku: 'SVC-004', category: 'Consulting', itemType: 'service', quantity: 0, minStock: 0, costPrice: 0, sellingPrice: 0, basePrice: 100.00, unit: 'pcs', lastUpdated: '2026-01-03', requiresEmployee: true },
+  { id: '15', name: 'Hair Treatment', sku: 'SVC-005', category: 'Salon', itemType: 'service', quantity: 0, minStock: 0, costPrice: 0, sellingPrice: 0, basePrice: 80.00, unit: 'pcs', lastUpdated: '2026-01-03', requiresEmployee: true },
 ];
 
 export const mockSuppliers: Supplier[] = [
@@ -33,12 +35,13 @@ export const mockCustomers: Customer[] = [
   { id: '4', name: 'Delta Corp', email: 'sales@delta.com', phone: '+1 (555) 777-8888', address: '400 Delta Way, Denver, CO', status: 'inactive' },
 ];
 
+// Employees - removed commissionRate
 export const mockEmployees: Employee[] = [
-  { id: '1', name: 'John Doe', email: 'john@company.com', phone: '+1 (555) 100-1001', role: 'Stylist', status: 'active', hireDate: '2024-01-15', department: 'Salon', commissionRate: 30 },
-  { id: '2', name: 'Jane Smith', email: 'jane@company.com', phone: '+1 (555) 100-1002', role: 'Senior Stylist', status: 'active', hireDate: '2023-06-01', department: 'Salon', commissionRate: 40 },
-  { id: '3', name: 'Mike Johnson', email: 'mike@company.com', phone: '+1 (555) 100-1003', role: 'Nail Technician', status: 'active', hireDate: '2024-03-20', department: 'Spa', commissionRate: 25 },
-  { id: '4', name: 'Sarah Williams', email: 'sarah@company.com', phone: '+1 (555) 100-1004', role: 'Consultant', status: 'active', hireDate: '2023-09-10', department: 'Consulting', commissionRate: 35 },
-  { id: '5', name: 'David Brown', email: 'david@company.com', phone: '+1 (555) 100-1005', role: 'Cashier', status: 'active', hireDate: '2024-06-01', department: 'Sales', commissionRate: 0 },
+  { id: '1', name: 'John Doe', email: 'john@company.com', phone: '+1 (555) 100-1001', role: 'Stylist', status: 'active', hireDate: '2024-01-15', department: 'Salon', totalTransactions: 45, totalEarnings: 2250 },
+  { id: '2', name: 'Jane Smith', email: 'jane@company.com', phone: '+1 (555) 100-1002', role: 'Senior Stylist', status: 'active', hireDate: '2023-06-01', department: 'Salon', totalTransactions: 62, totalEarnings: 4650 },
+  { id: '3', name: 'Mike Johnson', email: 'mike@company.com', phone: '+1 (555) 100-1003', role: 'Nail Technician', status: 'active', hireDate: '2024-03-20', department: 'Spa', totalTransactions: 38, totalEarnings: 1330 },
+  { id: '4', name: 'Sarah Williams', email: 'sarah@company.com', phone: '+1 (555) 100-1004', role: 'Consultant', status: 'active', hireDate: '2023-09-10', department: 'Consulting', totalTransactions: 25, totalEarnings: 2500 },
+  { id: '5', name: 'David Brown', email: 'david@company.com', phone: '+1 (555) 100-1005', role: 'Cashier', status: 'active', hireDate: '2024-06-01', department: 'Sales', totalTransactions: 0, totalEarnings: 0 },
 ];
 
 export const mockPurchaseOrders: PurchaseOrder[] = [
@@ -196,15 +199,18 @@ export const mockSalesOrders: SalesOrder[] = [
   },
 ];
 
+// POS Transactions with HPP tracking
 export const mockPOSTransactions: POSTransaction[] = [
   {
     id: '1',
     transactionNumber: 'POS-2026-001',
-    items: [{ itemId: '1', itemName: 'Wireless Mouse', itemType: 'product', quantity: 2, price: 35.99, total: 71.98 }],
+    items: [{ itemId: '1', itemName: 'Wireless Mouse', itemType: 'product', quantity: 2, price: 35.99, total: 71.98, costPrice: 25.00 }],
     subtotal: 71.98,
     tax: 7.20,
     discount: 0,
     total: 79.18,
+    totalCost: 50.00,
+    grossProfit: 21.98,
     status: 'completed',
     customerName: 'Walk-in Customer',
     paymentMethod: 'cash',
@@ -220,13 +226,15 @@ export const mockPOSTransactions: POSTransaction[] = [
     id: '2',
     transactionNumber: 'POS-2026-002',
     items: [
-      { itemId: '11', itemName: 'Haircut - Basic', itemType: 'service', quantity: 1, price: 50.00, total: 50.00, employeeAssignments: [{ employeeId: '1', employeeName: 'John Doe', percentage: 100 }] },
-      { itemId: '13', itemName: 'Manicure', itemType: 'service', quantity: 1, price: 35.00, total: 35.00, employeeAssignments: [{ employeeId: '3', employeeName: 'Mike Johnson', percentage: 100 }] },
+      { itemId: '11', itemName: 'Haircut - Basic', itemType: 'service', quantity: 1, price: 50.00, total: 50.00, employeeAssignments: [{ employeeId: '1', employeeName: 'John Doe', percentage: 100, earnings: 50.00 }] },
+      { itemId: '13', itemName: 'Manicure', itemType: 'service', quantity: 1, price: 35.00, total: 35.00, employeeAssignments: [{ employeeId: '3', employeeName: 'Mike Johnson', percentage: 100, earnings: 35.00 }] },
     ],
     subtotal: 85.00,
     tax: 8.50,
     discount: 0,
     total: 93.50,
+    totalCost: 0,
+    grossProfit: 85.00,
     status: 'in_progress',
     customerId: '1',
     customerName: 'Customer Alpha',
@@ -240,12 +248,14 @@ export const mockPOSTransactions: POSTransaction[] = [
     id: '3',
     transactionNumber: 'POS-2026-003',
     items: [
-      { itemId: '12', itemName: 'Hair Coloring', itemType: 'service', quantity: 1, price: 150.00, total: 150.00, employeeAssignments: [{ employeeId: '1', employeeName: 'John Doe', percentage: 50 }, { employeeId: '2', employeeName: 'Jane Smith', percentage: 50 }] },
+      { itemId: '12', itemName: 'Hair Coloring', itemType: 'service', quantity: 1, price: 150.00, total: 150.00, employeeAssignments: [{ employeeId: '1', employeeName: 'John Doe', percentage: 50, earnings: 75.00 }, { employeeId: '2', employeeName: 'Jane Smith', percentage: 50, earnings: 75.00 }] },
     ],
     subtotal: 150.00,
     tax: 15.00,
     discount: 0,
     total: 165.00,
+    totalCost: 0,
+    grossProfit: 150.00,
     status: 'draft',
     payments: [],
     paidAmount: 0,
@@ -256,11 +266,13 @@ export const mockPOSTransactions: POSTransaction[] = [
   {
     id: '4',
     transactionNumber: 'POS-2026-004',
-    items: [{ itemId: '8', itemName: 'Keyboard Mechanical', itemType: 'product', quantity: 1, price: 149.99, total: 149.99 }],
+    items: [{ itemId: '8', itemName: 'Keyboard Mechanical', itemType: 'product', quantity: 1, price: 149.99, total: 149.99, costPrice: 85.00 }],
     subtotal: 149.99,
     tax: 15.00,
     discount: 0,
     total: 164.99,
+    totalCost: 85.00,
+    grossProfit: 64.99,
     status: 'draft',
     payments: [],
     paidAmount: 0,

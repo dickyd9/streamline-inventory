@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Product, UnitType, UNIT_OPTIONS, ItemType } from '@/types/inventory';
+import { Product, UnitType, UNIT_OPTIONS, ItemType, PRODUCT_CATEGORIES, SERVICE_CATEGORIES } from '@/types/inventory';
 import {
   Dialog,
   DialogContent,
@@ -19,7 +19,6 @@ import {
 } from '@/components/ui/select';
 import { ImagePlus, Trash2 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useFeatureFlags } from '@/contexts/FeatureFlagsContext';
 
@@ -29,9 +28,6 @@ interface ProductDialogProps {
   product?: Product | null;
   onSave: (product: Omit<Product, 'id' | 'lastUpdated'> & { imageUrl?: string }) => void;
 }
-
-const productCategories = ['Electronics', 'Furniture', 'Stationery', 'Office Supplies', 'Beverages'];
-const serviceCategories = ['Salon', 'Spa', 'Consulting', 'Repair', 'Other Services'];
 
 export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDialogProps) {
   const { language, formatCurrency } = useLanguage();
@@ -48,13 +44,13 @@ export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDi
     minStock: 0,
     costPrice: 0,
     sellingPrice: 0,
+    basePrice: 0,
     unit: 'pcs' as UnitType,
     imageUrl: '',
-    duration: 30,
     requiresEmployee: true,
   });
   
-  const categories = formData.itemType === 'service' ? serviceCategories : productCategories;
+  const categories = formData.itemType === 'service' ? SERVICE_CATEGORIES : PRODUCT_CATEGORIES;
   
   const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string>('');
@@ -70,9 +66,9 @@ export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDi
         minStock: product.minStock,
         costPrice: product.costPrice,
         sellingPrice: product.sellingPrice,
+        basePrice: product.basePrice || product.sellingPrice || 0,
         unit: product.unit,
         imageUrl: product.imageUrl || '',
-        duration: product.duration || 30,
         requiresEmployee: product.requiresEmployee ?? true,
       });
       setPreviewUrl(product.imageUrl || '');
@@ -86,9 +82,9 @@ export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDi
         minStock: 0,
         costPrice: 0,
         sellingPrice: 0,
+        basePrice: 0,
         unit: 'pcs',
         imageUrl: '',
-        duration: 30,
         requiresEmployee: true,
       });
       setPreviewUrl('');
@@ -121,21 +117,10 @@ export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDi
 
     setUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('product-images')
-        .upload(fileName, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('product-images')
-        .getPublicUrl(fileName);
-
-      setFormData({ ...formData, imageUrl: publicUrl });
-      setPreviewUrl(publicUrl);
+      // In demo mode, create a local URL
+      const localUrl = URL.createObjectURL(file);
+      setFormData({ ...formData, imageUrl: localUrl });
+      setPreviewUrl(localUrl);
       
       toast({
         title: language === 'id' ? 'Berhasil' : 'Success',
@@ -163,10 +148,12 @@ export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDi
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // For services, set quantity and minStock to 0
+    
+    // For services, set quantity, minStock, costPrice, sellingPrice to 0
     const dataToSave = formData.itemType === 'service' 
-      ? { ...formData, quantity: 0, minStock: 0 }
-      : formData;
+      ? { ...formData, quantity: 0, minStock: 0, costPrice: 0, sellingPrice: 0 }
+      : { ...formData, basePrice: 0 };
+    
     onSave(dataToSave);
     onOpenChange(false);
   };
@@ -177,14 +164,14 @@ export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDi
         <DialogHeader>
           <DialogTitle>
             {product 
-              ? (language === 'id' ? 'Edit Produk' : 'Edit Product')
-              : (language === 'id' ? 'Tambah Produk Baru' : 'Add New Product')}
+              ? (language === 'id' ? 'Edit Item' : 'Edit Item')
+              : (language === 'id' ? 'Tambah Item Baru' : 'Add New Item')}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Image Upload */}
           <div className="space-y-2">
-            <Label>{language === 'id' ? 'Gambar Produk' : 'Product Image'}</Label>
+            <Label>{language === 'id' ? 'Gambar' : 'Image'}</Label>
             <div className="flex items-center gap-4">
               <div 
                 className="w-24 h-24 border-2 border-dashed border-border rounded-lg flex items-center justify-center overflow-hidden bg-muted/50 cursor-pointer hover:border-primary transition-colors"
@@ -233,7 +220,7 @@ export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDi
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="name">{language === 'id' ? 'Nama Produk' : 'Product Name'}</Label>
+              <Label htmlFor="name">{language === 'id' ? 'Nama Item' : 'Item Name'}</Label>
               <Input
                 id="name"
                 value={formData.name}
@@ -271,111 +258,117 @@ export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDi
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="category">{language === 'id' ? 'Kategori' : 'Category'}</Label>
-              <Select
-                value={formData.category}
-                onValueChange={(value) => setFormData({ ...formData, category: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={language === 'id' ? 'Pilih kategori' : 'Select category'} />
-                </SelectTrigger>
-                <SelectContent className="bg-popover">
-                  {categories.map((cat) => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {formData.itemType === 'service' && (
-              <div className="space-y-2">
-                <Label>{language === 'id' ? 'Durasi (menit)' : 'Duration (min)'}</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={formData.duration}
-                  onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) || 0 })}
-                />
-              </div>
-            )}
+          <div className="space-y-2">
+            <Label htmlFor="category">{language === 'id' ? 'Kategori' : 'Category'}</Label>
+            <Select
+              value={formData.category}
+              onValueChange={(value) => setFormData({ ...formData, category: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={language === 'id' ? 'Pilih kategori' : 'Select category'} />
+              </SelectTrigger>
+              <SelectContent className="bg-popover">
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Product-specific fields */}
+          {formData.itemType === 'product' && (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="unit">{language === 'id' ? 'Satuan Dasar' : 'Base Unit'}</Label>
+                  <Select
+                    value={formData.unit}
+                    onValueChange={(value) => setFormData({ ...formData, unit: value as UnitType })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover">
+                      {UNIT_OPTIONS.map((u) => (
+                        <SelectItem key={u.type} value={u.type}>{u.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="costPrice">{language === 'id' ? 'Harga Beli / HPP (Rp)' : 'Cost Price / COGS (Rp)'}</Label>
+                  <Input
+                    id="costPrice"
+                    type="number"
+                    min="0"
+                    step="100"
+                    value={formData.costPrice}
+                    onChange={(e) => setFormData({ ...formData, costPrice: parseFloat(e.target.value) || 0 })}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="sellingPrice">{language === 'id' ? 'Harga Jual (Rp)' : 'Selling Price (Rp)'}</Label>
+                <Input
+                  id="sellingPrice"
+                  type="number"
+                  min="0"
+                  step="100"
+                  value={formData.sellingPrice}
+                  onChange={(e) => setFormData({ ...formData, sellingPrice: parseFloat(e.target.value) || 0 })}
+                  required
+                />
+                {formData.costPrice > 0 && formData.sellingPrice > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {language === 'id' ? 'Margin:' : 'Margin:'} {formatCurrency(formData.sellingPrice - formData.costPrice)} 
+                    ({((formData.sellingPrice - formData.costPrice) / formData.sellingPrice * 100).toFixed(1)}%)
+                  </p>
+                )}
+              </div>
+
+              {/* Stock fields only for products */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="quantity">{language === 'id' ? 'Stok Saat Ini' : 'Current Stock'}</Label>
+                  <Input
+                    id="quantity"
+                    type="number"
+                    min="0"
+                    value={formData.quantity}
+                    onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="minStock">{language === 'id' ? 'Stok Minimum' : 'Min Stock Level'}</Label>
+                  <Input
+                    id="minStock"
+                    type="number"
+                    min="0"
+                    value={formData.minStock}
+                    onChange={(e) => setFormData({ ...formData, minStock: parseInt(e.target.value) || 0 })}
+                    required
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Service-specific fields */}
+          {formData.itemType === 'service' && (
             <div className="space-y-2">
-              <Label htmlFor="unit">{language === 'id' ? 'Satuan Dasar' : 'Base Unit'}</Label>
-              <Select
-                value={formData.unit}
-                onValueChange={(value) => setFormData({ ...formData, unit: value as UnitType })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-popover">
-                  {UNIT_OPTIONS.map((u) => (
-                    <SelectItem key={u.type} value={u.type}>{u.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="costPrice">{language === 'id' ? 'Harga Beli (Rp)' : 'Cost Price (Rp)'}</Label>
+              <Label htmlFor="basePrice">{language === 'id' ? 'Harga Jasa (Rp)' : 'Service Price (Rp)'}</Label>
               <Input
-                id="costPrice"
+                id="basePrice"
                 type="number"
                 min="0"
                 step="100"
-                value={formData.costPrice}
-                onChange={(e) => setFormData({ ...formData, costPrice: parseFloat(e.target.value) || 0 })}
+                value={formData.basePrice}
+                onChange={(e) => setFormData({ ...formData, basePrice: parseFloat(e.target.value) || 0 })}
                 required
               />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="sellingPrice">{language === 'id' ? 'Harga Jual (Rp)' : 'Selling Price (Rp)'}</Label>
-            <Input
-              id="sellingPrice"
-              type="number"
-              min="0"
-              step="100"
-              value={formData.sellingPrice}
-              onChange={(e) => setFormData({ ...formData, sellingPrice: parseFloat(e.target.value) || 0 })}
-              required
-            />
-            {formData.costPrice > 0 && formData.sellingPrice > 0 && (
-              <p className="text-xs text-muted-foreground">
-                {language === 'id' ? 'Margin:' : 'Margin:'} {formatCurrency(formData.sellingPrice - formData.costPrice)} 
-                ({((formData.sellingPrice - formData.costPrice) / formData.sellingPrice * 100).toFixed(1)}%)
-              </p>
-            )}
-          </div>
-
-          {/* Stock fields only for products */}
-          {formData.itemType === 'product' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="quantity">{language === 'id' ? 'Stok Saat Ini' : 'Current Stock'}</Label>
-                <Input
-                  id="quantity"
-                  type="number"
-                  min="0"
-                  value={formData.quantity}
-                  onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="minStock">{language === 'id' ? 'Stok Minimum' : 'Min Stock Level'}</Label>
-                <Input
-                  id="minStock"
-                  type="number"
-                  min="0"
-                  value={formData.minStock}
-                  onChange={(e) => setFormData({ ...formData, minStock: parseInt(e.target.value) || 0 })}
-                  required
-                />
-              </div>
             </div>
           )}
 
@@ -386,7 +379,7 @@ export function ProductDialog({ open, onOpenChange, product, onSave }: ProductDi
             <Button type="submit">
               {product 
                 ? (language === 'id' ? 'Simpan Perubahan' : 'Save Changes')
-                : (language === 'id' ? 'Tambah Produk' : 'Add Product')}
+                : (language === 'id' ? 'Tambah Item' : 'Add Item')}
             </Button>
           </DialogFooter>
         </form>

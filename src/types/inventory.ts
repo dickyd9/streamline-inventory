@@ -20,23 +20,51 @@ export const UNIT_OPTIONS: UnitInfo[] = [
 // Item type - can be product or service
 export type ItemType = 'product' | 'service';
 
+// Category types
+export interface ItemCategory {
+  id: string;
+  name: string;
+  itemType: ItemType;
+  description?: string;
+}
+
+export const PRODUCT_CATEGORIES: ItemCategory[] = [
+  { id: 'electronics', name: 'Electronics', itemType: 'product' },
+  { id: 'furniture', name: 'Furniture', itemType: 'product' },
+  { id: 'stationery', name: 'Stationery', itemType: 'product' },
+  { id: 'office_supplies', name: 'Office Supplies', itemType: 'product' },
+  { id: 'beverages', name: 'Beverages', itemType: 'product' },
+];
+
+export const SERVICE_CATEGORIES: ItemCategory[] = [
+  { id: 'salon', name: 'Salon', itemType: 'service' },
+  { id: 'spa', name: 'Spa', itemType: 'service' },
+  { id: 'consulting', name: 'Consulting', itemType: 'service' },
+  { id: 'repair', name: 'Repair', itemType: 'service' },
+  { id: 'other_services', name: 'Other Services', itemType: 'service' },
+];
+
 export interface Product {
   id: string;
   name: string;
   sku: string;
   category: string;
-  itemType: ItemType; // NEW: product or service
+  categoryId?: string;
+  itemType: ItemType;
   quantity: number; // 0 for services
   minStock: number; // 0 for services
-  costPrice: number;
-  sellingPrice: number;
+  costPrice: number; // for products only (HPP)
+  sellingPrice: number; // for products only
   unit: UnitType;
   supplier?: string;
   lastUpdated: string;
   imageUrl?: string;
-  // Service-specific fields
-  duration?: number; // in minutes, for services
-  requiresEmployee?: boolean; // if service needs employee assignment
+  // Service-specific fields (services don't have cost/selling price, only a base price)
+  basePrice?: number; // for services - the amount charged
+  requiresEmployee?: boolean;
+  // HPP tracking
+  totalCostValue?: number; // total inventory value at cost
+  avgCostPrice?: number; // weighted average cost
 }
 
 export interface Supplier {
@@ -80,7 +108,7 @@ export interface Customer {
   status: 'active' | 'inactive';
 }
 
-// Employee type
+// Employee type - removed commissionRate since it varies per service
 export interface Employee {
   id: string;
   name: string;
@@ -90,7 +118,9 @@ export interface Employee {
   status: 'active' | 'inactive';
   hireDate: string;
   department?: string;
-  commissionRate?: number; // percentage
+  // Performance tracking
+  totalTransactions?: number;
+  totalEarnings?: number;
 }
 
 // Employee work assignment for services
@@ -98,6 +128,7 @@ export interface EmployeeAssignment {
   employeeId: string;
   employeeName: string;
   percentage: number; // work percentage (e.g., 30%, 70%)
+  earnings?: number; // calculated earnings from this assignment
 }
 
 export type SalesOrderStatus = 'pending' | 'received' | 'partially_paid' | 'paid' | 'completed' | 'cancelled';
@@ -143,6 +174,7 @@ export interface POSCartItem {
   quantity: number;
   price: number;
   total: number;
+  costPrice?: number; // HPP per unit
   // For services
   employeeAssignments?: EmployeeAssignment[];
 }
@@ -155,6 +187,8 @@ export interface POSTransaction {
   tax: number;
   discount: number;
   total: number;
+  totalCost: number; // Total HPP
+  grossProfit: number; // subtotal - totalCost
   status: POSTransactionStatus;
   customerId?: string;
   customerName?: string;
@@ -234,4 +268,23 @@ export function calculateWeightedAverageCost(
 ): number {
   if (existingQty + newQty === 0) return 0;
   return ((existingQty * existingCost) + (newQty * newCostPerPc)) / (existingQty + newQty);
+}
+
+// HPP calculation helpers
+export function calculateHPP(items: POSCartItem[]): number {
+  return items.reduce((sum, item) => {
+    if (item.itemType === 'product' && item.costPrice) {
+      return sum + (item.costPrice * item.quantity);
+    }
+    return sum;
+  }, 0);
+}
+
+export function calculateGrossProfit(revenue: number, hpp: number): number {
+  return revenue - hpp;
+}
+
+export function calculateGrossProfitMargin(revenue: number, hpp: number): number {
+  if (revenue === 0) return 0;
+  return ((revenue - hpp) / revenue) * 100;
 }

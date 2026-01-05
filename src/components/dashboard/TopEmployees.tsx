@@ -19,6 +19,7 @@ export function TopEmployees() {
   
   const employeeStats = mockEmployees.map(emp => {
     let totalRevenue = 0;
+    let totalEarnings = 0;
     let transactionCount = 0;
 
     completedTransactions.forEach(transaction => {
@@ -26,20 +27,20 @@ export function TopEmployees() {
         if (item.employeeAssignments) {
           const assignment = item.employeeAssignments.find(a => a.employeeId === emp.id);
           if (assignment) {
-            totalRevenue += (item.total * assignment.percentage) / 100;
+            const itemRevenue = (item.total * assignment.percentage) / 100;
+            totalRevenue += itemRevenue;
+            totalEarnings += assignment.earnings || itemRevenue;
             transactionCount++;
           }
         }
       });
     });
 
-    const commission = totalRevenue * (emp.commissionRate || 0) / 100;
-
     return {
       ...emp,
       totalRevenue,
       transactionCount,
-      commission,
+      earnings: totalEarnings,
     };
   }).filter(e => e.transactionCount > 0)
     .sort((a, b) => b.totalRevenue - a.totalRevenue)
@@ -93,7 +94,7 @@ export function TopEmployees() {
               </p>
               <div className="flex items-center gap-1 text-xs text-success">
                 <TrendingUp className="w-3 h-3" />
-                <span>{formatCurrency(employee.commission)}</span>
+                <span>{formatCurrency(employee.earnings)}</span>
               </div>
             </div>
           </div>

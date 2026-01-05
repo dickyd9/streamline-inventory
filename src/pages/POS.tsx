@@ -15,14 +15,12 @@ import {
   FileText,
   Clock,
   CheckCircle2,
-  User,
   CreditCard,
   Banknote,
   Smartphone,
   X,
   Scissors,
   Package,
-  ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { mockProducts, mockCustomers, mockPOSTransactions, mockEmployees } from '@/data/mockData';
@@ -31,10 +29,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { POSTransaction, POSCartItem, POSPayment, Product } from '@/types/inventory';
+import { POSTransaction, POSCartItem, POSPayment, Product, calculateHPP } from '@/types/inventory';
 import { TransactionCard } from '@/components/pos/TransactionCard';
 import { ServiceCompletionDialog } from '@/components/pos/ServiceCompletionDialog';
 import { ReceiptDialog } from '@/components/pos/ReceiptDialog';
+import { TransactionDetailDialog } from '@/components/pos/TransactionDetailDialog';
 
 export default function POS() {
   const { isEnabled } = useFeatureFlags();
@@ -53,7 +52,8 @@ export default function POS() {
   const [pendingCompleteTransaction, setPendingCompleteTransaction] = useState<POSTransaction | null>(null);
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
   const [completedTransaction, setCompletedTransaction] = useState<POSTransaction | null>(null);
-  const [selectedTransaction, setSelectedTransaction] = useState<POSTransaction | null>(null);
+  const [showDetailDialog, setShowDetailDialog] = useState(false);
+  const [viewingTransaction, setViewingTransaction] = useState<POSTransaction | null>(null);
 
   // Filter items based on business type flags
   const availableProducts = useMemo(() => {
@@ -81,10 +81,12 @@ export default function POS() {
     });
   }, [selectedCategory, searchQuery, availableProducts]);
 
-  // Cart calculations
+  // Cart calculations with HPP
   const cartSubtotal = cart.reduce((sum, item) => sum + item.total, 0);
   const cartTax = cartSubtotal * 0.1;
   const cartTotal = cartSubtotal + cartTax;
+  const cartHPP = calculateHPP(cart);
+  const cartGrossProfit = cartSubtotal - cartHPP;
 
   // Transaction counts
   const draftTransactions = transactions.filter(t => t.status === 'draft');
@@ -101,13 +103,20 @@ export default function POS() {
             : item
         );
       }
+      
+      // Use basePrice for services, sellingPrice for products
+      const price = product.itemType === 'service' 
+        ? (product.basePrice || 0) 
+        : product.sellingPrice;
+      
       return [...prev, {
         itemId: product.id,
         itemName: product.name,
         itemType: product.itemType || 'product',
         quantity: 1,
-        price: product.sellingPrice,
-        total: product.sellingPrice,
+        price,
+        total: price,
+        costPrice: product.itemType === 'product' ? product.costPrice : undefined,
       }];
     });
   };
@@ -171,6 +180,8 @@ export default function POS() {
       tax: cartTax,
       discount: 0,
       total: cartTotal,
+      totalCost: cartHPP,
+      grossProfit: cartGrossProfit,
       status: 'draft',
       customerId: selectedCustomer || undefined,
       customerName: customerName || selectedCustomer ? mockCustomers.find(c => c.id === selectedCustomer)?.name : 'Walk-in',
@@ -202,6 +213,8 @@ export default function POS() {
       tax: cartTax,
       discount: 0,
       total: cartTotal,
+      totalCost: cartHPP,
+      grossProfit: cartGrossProfit,
       status: 'draft',
       customerId: selectedCustomer || undefined,
       customerName: customerName || (selectedCustomer ? mockCustomers.find(c => c.id === selectedCustomer)?.name : undefined),
@@ -215,6 +228,11 @@ export default function POS() {
     setTransactions([newTransaction, ...transactions]);
     toast.success('Transaksi disimpan sebagai draft');
     clearCart();
+  };
+
+  const handleViewTransaction = (transaction: POSTransaction) => {
+    setViewingTransaction(transaction);
+    setShowDetailDialog(true);
   };
 
   const handleUpdateStatus = (transaction: POSTransaction, newStatus: POSTransaction['status']) => {
@@ -275,6 +293,9 @@ export default function POS() {
       // Remove from transactions temporarily
       setTransactions(prev => prev.filter(t => t.id !== transaction.id));
       toast.info('Transaksi dimuat ke keranjang');
+    } else {
+      // For in_progress or completed, show detail dialog
+      handleViewTransaction(transaction);
     }
   };
 
@@ -325,7 +346,7 @@ export default function POS() {
                         <TransactionCard 
                           key={t.id} 
                           transaction={t} 
-                          onView={(t) => {}} 
+                          onView={handleViewTransaction} 
                           onUpdateStatus={handleUpdateStatus}
                           onSelect={handleSelectTransaction}
                         />
@@ -345,9 +366,9 @@ export default function POS() {
                         <TransactionCard 
                           key={t.id} 
                           transaction={t} 
-                          onView={(t) => {}} 
+                          onView={handleViewTransaction} 
                           onUpdateStatus={handleUpdateStatus}
-                          onSelect={() => {}}
+                          onSelect={handleSelectTransaction}
                         />
                       ))
                     )}
@@ -365,7 +386,7 @@ export default function POS() {
                         <TransactionCard 
                           key={t.id} 
                           transaction={t} 
-                          onView={(t) => { setCompletedTransaction(t); setShowReceiptDialog(true); }} 
+                          onView={handleViewTransaction} 
                           onUpdateStatus={() => {}}
                           onSelect={() => { setCompletedTransaction(t); setShowReceiptDialog(true); }}
                         />
@@ -424,7 +445,7 @@ export default function POS() {
                         <p className="text-xs text-muted-foreground">{product.sku}</p>
                         <div className="flex items-center justify-between mt-2">
                           <span className="font-semibold text-primary">
-                            Rp {product.sellingPrice.toLocaleString()}
+                            Rp {(product.itemType === 'service' ? (product.basePrice || 0) : product.sellingPrice).toLocaleString()}
                           </span>
                           {product.itemType === 'product' ? (
                             <Badge variant="secondary" className="text-xs">
@@ -432,7 +453,7 @@ export default function POS() {
                             </Badge>
                           ) : (
                             <Badge variant="outline" className="text-xs">
-                              {product.duration}m
+                              Jasa
                             </Badge>
                           )}
                         </div>
@@ -559,10 +580,22 @@ export default function POS() {
                 <span className="text-muted-foreground">Pajak (10%)</span>
                 <span>Rp {cartTax.toLocaleString()}</span>
               </div>
+              {cartHPP > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">HPP</span>
+                  <span className="text-destructive">Rp {cartHPP.toLocaleString()}</span>
+                </div>
+              )}
               <div className="flex justify-between text-lg font-semibold pt-2 border-t">
                 <span>Total</span>
                 <span className="text-primary">Rp {cartTotal.toLocaleString()}</span>
               </div>
+              {cartHPP > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Laba Kotor</span>
+                  <span className="text-success">Rp {cartGrossProfit.toLocaleString()}</span>
+                </div>
+              )}
             </div>
 
             {/* Actions */}
@@ -705,6 +738,14 @@ export default function POS() {
         open={showReceiptDialog}
         onOpenChange={setShowReceiptDialog}
         transaction={completedTransaction}
+      />
+
+      {/* Transaction Detail Dialog */}
+      <TransactionDetailDialog
+        open={showDetailDialog}
+        onOpenChange={setShowDetailDialog}
+        transaction={viewingTransaction}
+        onUpdateStatus={handleUpdateStatus}
       />
     </MainLayout>
   );

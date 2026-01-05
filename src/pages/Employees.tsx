@@ -9,9 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Search, Plus, Edit, Trash2, Users, UserCheck, TrendingUp, DollarSign } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Search, Plus, Edit, Trash2, Users, UserCheck, TrendingUp, DollarSign, Eye, FileText, Printer } from 'lucide-react';
 import { mockEmployees, mockPOSTransactions } from '@/data/mockData';
-import { Employee } from '@/types/inventory';
+import { Employee, POSTransaction } from '@/types/inventory';
 import { toast } from 'sonner';
 import { GrowthIndicator } from '@/components/common/GrowthIndicator';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -26,16 +27,16 @@ export default function Employees() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [dateFilter, setDateFilter] = useState('month');
+  const [viewTab, setViewTab] = useState<'list' | 'report'>('list');
+  const [selectedEmployeeReport, setSelectedEmployeeReport] = useState<Employee | null>(null);
 
-  // Form state
+  // Form state - removed commissionRate
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
     role: '',
     department: '',
-    commissionRate: 0,
     status: 'active' as 'active' | 'inactive',
   });
 
@@ -52,23 +53,33 @@ export default function Employees() {
   const activeEmployees = employees.filter(e => e.status === 'active').length;
   const completedTransactions = mockPOSTransactions.filter(t => t.status === 'completed');
   
-  // Calculate earnings per employee
+  // Calculate earnings per employee from service assignments
   const employeeEarnings = employees.map(emp => {
     let totalEarnings = 0;
+    let transactionCount = 0;
+    const transactions: POSTransaction[] = [];
+
     completedTransactions.forEach(transaction => {
+      let wasInvolved = false;
       transaction.items.forEach(item => {
         if (item.employeeAssignments) {
           const assignment = item.employeeAssignments.find(a => a.employeeId === emp.id);
           if (assignment) {
-            totalEarnings += (item.total * assignment.percentage) / 100 * (emp.commissionRate || 0) / 100;
+            totalEarnings += assignment.earnings || (item.total * assignment.percentage) / 100;
+            wasInvolved = true;
           }
         }
       });
+      if (wasInvolved) {
+        transactionCount++;
+        transactions.push(transaction);
+      }
     });
-    return { ...emp, earnings: totalEarnings };
+
+    return { ...emp, earnings: totalEarnings, transactionCount, transactions };
   });
 
-  const totalCommissions = employeeEarnings.reduce((sum, e) => sum + e.earnings, 0);
+  const totalEarnings = employeeEarnings.reduce((sum, e) => sum + e.earnings, 0);
 
   const handleAddEmployee = () => {
     setSelectedEmployee(null);
@@ -78,7 +89,6 @@ export default function Employees() {
       phone: '',
       role: '',
       department: '',
-      commissionRate: 0,
       status: 'active',
     });
     setDialogOpen(true);
@@ -92,10 +102,14 @@ export default function Employees() {
       phone: employee.phone,
       role: employee.role,
       department: employee.department || '',
-      commissionRate: employee.commissionRate || 0,
       status: employee.status,
     });
     setDialogOpen(true);
+  };
+
+  const handleViewReport = (employee: Employee) => {
+    setSelectedEmployeeReport(employee);
+    setViewTab('report');
   };
 
   const handleSave = () => {
@@ -132,6 +146,10 @@ export default function Employees() {
     }
   };
 
+  const handlePrintReport = () => {
+    window.print();
+  };
+
   if (!isEnabled('employees')) {
     return (
       <MainLayout title={language === 'id' ? 'Karyawan' : 'Employees'}>
@@ -150,151 +168,260 @@ export default function Employees() {
     );
   }
 
+  // Get employee report data
+  const reportEmployee = selectedEmployeeReport 
+    ? employeeEarnings.find(e => e.id === selectedEmployeeReport.id)
+    : null;
+
   return (
     <MainLayout title={language === 'id' ? 'Karyawan' : 'Employees'}>
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">{language === 'id' ? 'Total Karyawan' : 'Total Employees'}</p>
-                <p className="text-2xl font-bold">{employees.length}</p>
-              </div>
-              <div className="p-3 rounded-full bg-primary/10">
-                <Users className="h-6 w-6 text-primary" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">{language === 'id' ? 'Karyawan Aktif' : 'Active Employees'}</p>
-                <p className="text-2xl font-bold">{activeEmployees}</p>
-              </div>
-              <div className="p-3 rounded-full bg-success/10">
-                <UserCheck className="h-6 w-6 text-success" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">{language === 'id' ? 'Transaksi Selesai' : 'Completed Trans.'}</p>
-                <p className="text-2xl font-bold">{completedTransactions.length}</p>
-                <GrowthIndicator value={15} />
-              </div>
-              <div className="p-3 rounded-full bg-warning/10">
-                <TrendingUp className="h-6 w-6 text-warning" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">{language === 'id' ? 'Total Komisi' : 'Total Commission'}</p>
-                <p className="text-2xl font-bold">{formatCurrency(totalCommissions)}</p>
-                <GrowthIndicator value={8} />
-              </div>
-              <div className="p-3 rounded-full bg-accent/10">
-                <DollarSign className="h-6 w-6 text-accent-foreground" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <Tabs value={viewTab} onValueChange={(v) => setViewTab(v as 'list' | 'report')}>
+        <TabsList className="mb-4">
+          <TabsTrigger value="list">
+            <Users className="w-4 h-4 mr-2" />
+            {language === 'id' ? 'Daftar' : 'List'}
+          </TabsTrigger>
+          <TabsTrigger value="report" disabled={!selectedEmployeeReport}>
+            <FileText className="w-4 h-4 mr-2" />
+            {language === 'id' ? 'Laporan' : 'Report'}
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder={language === 'id' ? 'Cari karyawan...' : 'Search employees...'}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder={language === 'id' ? 'Semua Departemen' : 'All Departments'} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{language === 'id' ? 'Semua Departemen' : 'All Departments'}</SelectItem>
-            {departments.map(dept => (
-              <SelectItem key={dept} value={dept!}>{dept}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button onClick={handleAddEmployee}>
-          <Plus className="w-4 h-4 mr-2" />
-          {language === 'id' ? 'Tambah Karyawan' : 'Add Employee'}
-        </Button>
-      </div>
+        <TabsContent value="list">
+          {/* Stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">{language === 'id' ? 'Total Karyawan' : 'Total Employees'}</p>
+                    <p className="text-2xl font-bold">{employees.length}</p>
+                  </div>
+                  <div className="p-3 rounded-full bg-primary/10">
+                    <Users className="h-6 w-6 text-primary" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">{language === 'id' ? 'Karyawan Aktif' : 'Active Employees'}</p>
+                    <p className="text-2xl font-bold">{activeEmployees}</p>
+                  </div>
+                  <div className="p-3 rounded-full bg-success/10">
+                    <UserCheck className="h-6 w-6 text-success" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">{language === 'id' ? 'Transaksi Selesai' : 'Completed Trans.'}</p>
+                    <p className="text-2xl font-bold">{completedTransactions.length}</p>
+                    <GrowthIndicator value={15} />
+                  </div>
+                  <div className="p-3 rounded-full bg-warning/10">
+                    <TrendingUp className="h-6 w-6 text-warning" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">{language === 'id' ? 'Total Pendapatan' : 'Total Earnings'}</p>
+                    <p className="text-2xl font-bold">{formatCurrency(totalEarnings)}</p>
+                    <GrowthIndicator value={8} />
+                  </div>
+                  <div className="p-3 rounded-full bg-accent/10">
+                    <DollarSign className="h-6 w-6 text-accent-foreground" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-      {/* Table */}
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{language === 'id' ? 'Nama' : 'Name'}</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>{language === 'id' ? 'Telepon' : 'Phone'}</TableHead>
-                <TableHead>{language === 'id' ? 'Jabatan' : 'Role'}</TableHead>
-                <TableHead>{language === 'id' ? 'Departemen' : 'Department'}</TableHead>
-                <TableHead>{language === 'id' ? 'Komisi %' : 'Commission %'}</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>{language === 'id' ? 'Penghasilan' : 'Earnings'}</TableHead>
-                <TableHead className="text-right">{language === 'id' ? 'Aksi' : 'Actions'}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredEmployees.map((employee) => {
-                const empWithEarnings = employeeEarnings.find(e => e.id === employee.id);
-                return (
-                  <TableRow key={employee.id}>
-                    <TableCell className="font-medium">{employee.name}</TableCell>
-                    <TableCell>{employee.email}</TableCell>
-                    <TableCell>{employee.phone}</TableCell>
-                    <TableCell>{employee.role}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{employee.department || '-'}</Badge>
-                    </TableCell>
-                    <TableCell>{employee.commissionRate || 0}%</TableCell>
-                    <TableCell>
-                      <Badge variant={employee.status === 'active' ? 'default' : 'secondary'}>
-                        {employee.status === 'active' ? (language === 'id' ? 'Aktif' : 'Active') : (language === 'id' ? 'Nonaktif' : 'Inactive')}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-success font-medium">
-                      {formatCurrency(empWithEarnings?.earnings || 0)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => handleEditEmployee(employee)}>
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => { setSelectedEmployee(employee); setDeleteDialogOpen(true); }}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder={language === 'id' ? 'Cari karyawan...' : 'Search employees...'}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder={language === 'id' ? 'Semua Departemen' : 'All Departments'} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{language === 'id' ? 'Semua Departemen' : 'All Departments'}</SelectItem>
+                {departments.map(dept => (
+                  <SelectItem key={dept} value={dept!}>{dept}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={handleAddEmployee}>
+              <Plus className="w-4 h-4 mr-2" />
+              {language === 'id' ? 'Tambah Karyawan' : 'Add Employee'}
+            </Button>
+          </div>
+
+          {/* Table */}
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{language === 'id' ? 'Nama' : 'Name'}</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>{language === 'id' ? 'Telepon' : 'Phone'}</TableHead>
+                    <TableHead>{language === 'id' ? 'Jabatan' : 'Role'}</TableHead>
+                    <TableHead>{language === 'id' ? 'Departemen' : 'Department'}</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>{language === 'id' ? 'Transaksi' : 'Transactions'}</TableHead>
+                    <TableHead>{language === 'id' ? 'Pendapatan' : 'Earnings'}</TableHead>
+                    <TableHead className="text-right">{language === 'id' ? 'Aksi' : 'Actions'}</TableHead>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {filteredEmployees.map((employee) => {
+                    const empWithEarnings = employeeEarnings.find(e => e.id === employee.id);
+                    return (
+                      <TableRow key={employee.id}>
+                        <TableCell className="font-medium">{employee.name}</TableCell>
+                        <TableCell>{employee.email}</TableCell>
+                        <TableCell>{employee.phone}</TableCell>
+                        <TableCell>{employee.role}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{employee.department || '-'}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={employee.status === 'active' ? 'default' : 'secondary'}>
+                            {employee.status === 'active' ? (language === 'id' ? 'Aktif' : 'Active') : (language === 'id' ? 'Nonaktif' : 'Inactive')}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{empWithEarnings?.transactionCount || 0}</TableCell>
+                        <TableCell className="text-success font-medium">
+                          {formatCurrency(empWithEarnings?.earnings || 0)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => handleViewReport(employee)}>
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleEditEmployee(employee)}>
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => { setSelectedEmployee(employee); setDeleteDialogOpen(true); }}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {/* Add/Edit Dialog */}
+        <TabsContent value="report">
+          {reportEmployee && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold">{reportEmployee.name}</h2>
+                  <p className="text-muted-foreground">{reportEmployee.role} - {reportEmployee.department}</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={handlePrintReport}>
+                    <Printer className="w-4 h-4 mr-2" />
+                    {language === 'id' ? 'Cetak' : 'Print'}
+                  </Button>
+                  <Button variant="ghost" onClick={() => { setSelectedEmployeeReport(null); setViewTab('list'); }}>
+                    {language === 'id' ? 'Kembali' : 'Back'}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Card>
+                  <CardContent className="pt-6">
+                    <p className="text-sm text-muted-foreground">{language === 'id' ? 'Total Transaksi' : 'Total Transactions'}</p>
+                    <p className="text-2xl font-bold">{reportEmployee.transactionCount}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6">
+                    <p className="text-sm text-muted-foreground">{language === 'id' ? 'Total Pendapatan' : 'Total Earnings'}</p>
+                    <p className="text-2xl font-bold text-success">{formatCurrency(reportEmployee.earnings)}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6">
+                    <p className="text-sm text-muted-foreground">{language === 'id' ? 'Rata-rata per Transaksi' : 'Avg per Transaction'}</p>
+                    <p className="text-2xl font-bold">
+                      {formatCurrency(reportEmployee.transactionCount > 0 ? reportEmployee.earnings / reportEmployee.transactionCount : 0)}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Transaction History */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>{language === 'id' ? 'Riwayat Transaksi' : 'Transaction History'}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{language === 'id' ? 'No. Transaksi' : 'Transaction No.'}</TableHead>
+                        <TableHead>{language === 'id' ? 'Tanggal' : 'Date'}</TableHead>
+                        <TableHead>{language === 'id' ? 'Item' : 'Item'}</TableHead>
+                        <TableHead>{language === 'id' ? 'Persentase' : 'Percentage'}</TableHead>
+                        <TableHead>{language === 'id' ? 'Pendapatan' : 'Earnings'}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {reportEmployee.transactions.map(t => (
+                        t.items.filter(item => 
+                          item.employeeAssignments?.some(a => a.employeeId === reportEmployee.id)
+                        ).map((item, idx) => {
+                          const assignment = item.employeeAssignments?.find(a => a.employeeId === reportEmployee.id);
+                          return (
+                            <TableRow key={`${t.id}-${idx}`}>
+                              <TableCell className="font-mono">{t.transactionNumber}</TableCell>
+                              <TableCell>{new Date(t.completedAt || t.createdAt).toLocaleDateString('id-ID')}</TableCell>
+                              <TableCell>{item.itemName}</TableCell>
+                              <TableCell>{assignment?.percentage}%</TableCell>
+                              <TableCell className="text-success font-medium">
+                                {formatCurrency(assignment?.earnings || (item.total * (assignment?.percentage || 0)) / 100)}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Add/Edit Dialog - removed commission rate */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -348,27 +475,17 @@ export default function Employees() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>{language === 'id' ? 'Rate Komisi (%)' : 'Commission Rate (%)'}</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={formData.commissionRate}
-                  onChange={(e) => setFormData({ ...formData, commissionRate: Number(e.target.value) })}
-                />
+                <Label>Status</Label>
+                <Select value={formData.status} onValueChange={(val: 'active' | 'inactive') => setFormData({ ...formData, status: val })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">{language === 'id' ? 'Aktif' : 'Active'}</SelectItem>
+                    <SelectItem value="inactive">{language === 'id' ? 'Nonaktif' : 'Inactive'}</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={formData.status} onValueChange={(val: 'active' | 'inactive') => setFormData({ ...formData, status: val })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">{language === 'id' ? 'Aktif' : 'Active'}</SelectItem>
-                  <SelectItem value="inactive">{language === 'id' ? 'Nonaktif' : 'Inactive'}</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
           <DialogFooter>
