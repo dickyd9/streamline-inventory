@@ -10,7 +10,6 @@ import { Separator } from '@/components/ui/separator';
 import { User, Mail, Phone, Camera, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 
 export default function Profile() {
   const { toast } = useToast();
@@ -24,51 +23,22 @@ export default function Profile() {
   useEffect(() => {
     if (user) {
       setEmail(user.email || '');
-      fetchProfile();
+      setFullName(user.fullName || '');
     }
   }, [user]);
-
-  const fetchProfile = async () => {
-    if (!user) return;
-    
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .maybeSingle();
-    
-    if (!error && data) {
-      setFullName(data.full_name || '');
-      setPhone(data.phone || '');
-      setAvatarUrl(data.avatar_url || '');
-    }
-  };
 
   const handleSave = async () => {
     if (!user) return;
     
     setIsLoading(true);
     
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        full_name: fullName,
-        phone: phone,
-      })
-      .eq('id', user.id);
+    // In demo mode, just simulate save
+    await new Promise(resolve => setTimeout(resolve, 500));
     
-    if (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to update profile.',
-      });
-    } else {
-      toast({
-        title: 'Profile Updated',
-        description: 'Your profile has been saved successfully.',
-      });
-    }
+    toast({
+      title: 'Profile Updated',
+      description: 'Your profile has been saved successfully.',
+    });
     
     setIsLoading(false);
   };
@@ -206,17 +176,6 @@ export default function Profile() {
                 <p className="font-medium">Role</p>
                 <p className="text-sm text-muted-foreground capitalize">
                   {role || 'Staff'}
-                </p>
-              </div>
-            </div>
-            <Separator />
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="font-medium">Member Since</p>
-                <p className="text-sm text-muted-foreground">
-                  {user?.created_at 
-                    ? new Date(user.created_at).toLocaleDateString() 
-                    : '-'}
                 </p>
               </div>
             </div>
