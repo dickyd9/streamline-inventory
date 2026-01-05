@@ -25,6 +25,7 @@ import { ProductDialog } from './ProductDialog';
 import { DeleteProductDialog } from './DeleteProductDialog';
 import { toast } from 'sonner';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useActivityLog } from '@/hooks/useActivityLog';
 
 const getStockStatus = (product: Product) => {
   if (product.quantity === 0) return 'out-of-stock';
@@ -40,6 +41,7 @@ const stockStyles = {
 
 export function ProductTable() {
   const { language, formatCurrency } = useLanguage();
+  const { logActivity } = useActivityLog();
   const [products, setProducts] = useState<(Product & { imageUrl?: string })[]>(initialProducts);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -85,6 +87,13 @@ export function ProductTable() {
           ? { ...p, ...productData, lastUpdated: new Date().toISOString().split('T')[0] }
           : p
       ));
+      logActivity({
+        action: 'update',
+        entityType: 'product',
+        entityId: selectedProduct.id,
+        entityName: productData.name,
+        details: { sku: productData.sku, category: productData.category },
+      });
       toast.success(language === 'id' ? 'Produk berhasil diperbarui' : 'Product updated successfully');
     } else {
       const newProduct = {
@@ -93,6 +102,13 @@ export function ProductTable() {
         lastUpdated: new Date().toISOString().split('T')[0],
       };
       setProducts([...products, newProduct]);
+      logActivity({
+        action: 'create',
+        entityType: 'product',
+        entityId: newProduct.id,
+        entityName: productData.name,
+        details: { sku: productData.sku, category: productData.category },
+      });
       toast.success(language === 'id' ? 'Produk berhasil ditambahkan' : 'Product added successfully');
     }
   };
@@ -100,6 +116,12 @@ export function ProductTable() {
   const handleDeleteConfirm = () => {
     if (selectedProduct) {
       setProducts(products.filter(p => p.id !== selectedProduct.id));
+      logActivity({
+        action: 'delete',
+        entityType: 'product',
+        entityId: selectedProduct.id,
+        entityName: selectedProduct.name,
+      });
       toast.success(language === 'id' ? 'Produk berhasil dihapus' : 'Product deleted successfully');
       setDeleteDialogOpen(false);
       setSelectedProduct(null);

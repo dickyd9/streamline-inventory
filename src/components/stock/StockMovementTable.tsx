@@ -23,12 +23,16 @@ import { ArrowDownCircle, ArrowUpCircle, Search, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { StockMovementDialog } from './StockMovementDialog';
 import { toast } from 'sonner';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { useActivityLog } from '@/hooks/useActivityLog';
 
 const getReasonLabel = (reason: string) => {
   return ADJUSTMENT_REASONS.find(r => r.type === reason)?.label || reason;
 };
 
 export function StockMovementTable() {
+  const { language } = useLanguage();
+  const { logActivity } = useActivityLog();
   const [movements, setMovements] = useState<StockMovement[]>(initialMovements);
   const [products, setProducts] = useState<Product[]>(mockProducts);
   const [searchTerm, setSearchTerm] = useState('');
@@ -63,7 +67,24 @@ export function StockMovementTable() {
       return p;
     }));
     
-    toast.success(`Stock ${movementData.type === 'in' ? 'received' : 'issued'}: ${movementData.totalPcs} pcs of ${movementData.productName}`);
+    logActivity({
+      action: movementData.type === 'in' ? 'stock_in' : 'stock_out',
+      entityType: 'stock_movement',
+      entityId: newMovement.id,
+      entityName: movementData.productName,
+      details: { 
+        type: movementData.type, 
+        quantity: movementData.totalPcs, 
+        reference: movementData.reference,
+        reason: movementData.adjustmentReason,
+      },
+    });
+    
+    toast.success(
+      language === 'id' 
+        ? `Stok ${movementData.type === 'in' ? 'masuk' : 'keluar'}: ${movementData.totalPcs} pcs ${movementData.productName}`
+        : `Stock ${movementData.type === 'in' ? 'received' : 'issued'}: ${movementData.totalPcs} pcs of ${movementData.productName}`
+    );
   };
 
   return (

@@ -15,6 +15,7 @@ import Sales from "./pages/Sales";
 import Invoices from "./pages/Invoices";
 import Suppliers from "./pages/Suppliers";
 import Customers from "./pages/Customers";
+import Expenses from "./pages/Expenses";
 import Reports from "./pages/Reports";
 import Auth from "./pages/Auth";
 import Settings from "./pages/Settings";
@@ -57,6 +58,7 @@ function AppRoutes() {
       <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
       <Route path="/suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
       <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
+      <Route path="/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { RecentOrders } from '@/components/dashboard/RecentOrders';
@@ -5,10 +6,13 @@ import { LowStockAlert } from '@/components/dashboard/LowStockAlert';
 import { AdvancedCharts } from '@/components/dashboard/AdvancedCharts';
 import { TopSellingProducts } from '@/components/dashboard/TopSellingProducts';
 import { BusinessInsights } from '@/components/dashboard/BusinessInsights';
+import { FinancialSummary } from '@/components/dashboard/FinancialSummary';
 import { mockProducts, mockPurchaseOrders, mockSuppliers, mockSalesOrders } from '@/data/mockData';
 import { Package, ShoppingCart, AlertTriangle, DollarSign, TrendingUp } from 'lucide-react';
 
 const Dashboard = () => {
+  const [dateFilter, setDateFilter] = useState('month');
+  
   const totalProducts = mockProducts.length;
   const lowStockCount = mockProducts.filter(p => p.quantity <= p.minStock).length;
   const pendingOrders = mockPurchaseOrders.filter(o => o.status === 'pending').length;
@@ -61,6 +65,11 @@ const Dashboard = () => {
           icon={AlertTriangle}
           variant="destructive"
         />
+      </div>
+
+      {/* Financial Summary Section */}
+      <div className="mb-6">
+        <FinancialSummary dateFilter={dateFilter} onDateFilterChange={setDateFilter} />
       </div>
 
       {/* Top row - Charts and insights */}

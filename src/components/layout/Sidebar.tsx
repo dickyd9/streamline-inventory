@@ -16,7 +16,8 @@ import {
   ClipboardCheck,
   FileText,
   UsersRound,
-  History
+  History,
+  Receipt
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -46,6 +47,8 @@ export function Sidebar() {
     { icon: ShoppingCart, label: t('nav.purchaseOrders'), path: '/purchases' },
     { icon: ShoppingBag, label: t('nav.salesOrders'), path: '/sales' },
     { icon: FileText, label: t('nav.invoices'), path: '/invoices' },
+    { type: 'separator', label: language === 'id' ? 'Keuangan' : 'Finance' },
+    { icon: Receipt, label: language === 'id' ? 'Pengeluaran' : 'Expenses', path: '/expenses' },
     { type: 'separator', label: t('nav.directory') },
     { icon: Users, label: t('nav.suppliers'), path: '/suppliers' },
     { icon: UserCircle, label: t('nav.customers'), path: '/customers' },
