@@ -114,13 +114,13 @@ export function Sidebar() {
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
                 isActive 
-                  ? "bg-sidebar-accent text-sidebar-primary border-l-2 border-sidebar-primary" 
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                  ? "bg-white/20 text-white font-semibold" 
+                  : "text-white/80 hover:bg-white/10 hover:text-white",
                 collapsed && "justify-center px-2"
               )}
             >
-              <Icon className={cn("w-5 h-5 flex-shrink-0", isActive && "text-sidebar-primary")} />
-              {!collapsed && <span className="font-medium">{item.label}</span>}
+              <Icon className="w-5 h-5 flex-shrink-0" />
+              {!collapsed && <span>{item.label}</span>}
             </Link>
           );
         })}
@@ -133,13 +133,13 @@ export function Sidebar() {
           className={cn(
             "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
             location.pathname === '/settings'
-              ? "bg-sidebar-accent text-sidebar-primary border-l-2 border-sidebar-primary"
-              : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+              ? "bg-white/20 text-white font-semibold"
+              : "text-white/80 hover:bg-white/10 hover:text-white",
             collapsed && "justify-center px-2"
           )}
         >
-          <Settings className={cn("w-5 h-5 flex-shrink-0", location.pathname === '/settings' && "text-sidebar-primary")} />
-          {!collapsed && <span className="font-medium">{t('nav.settings')}</span>}
+          <Settings className="w-5 h-5 flex-shrink-0" />
+          {!collapsed && <span>{t('nav.settings')}</span>}
         </Link>
       </div>
     </aside>
