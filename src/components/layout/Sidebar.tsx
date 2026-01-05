@@ -64,6 +64,8 @@ export function Sidebar() {
     { type: 'separator', label: t('nav.directory') },
     { icon: Users, label: t('nav.suppliers'), path: '/suppliers', featureFlag: 'suppliers' },
     { icon: UserCircle, label: t('nav.customers'), path: '/customers', featureFlag: 'customers' },
+    { type: 'separator', label: language === 'id' ? 'Tim' : 'Team' },
+    { icon: UsersRound, label: language === 'id' ? 'Karyawan' : 'Employees', path: '/employees', featureFlag: 'employees' },
     { type: 'separator', label: t('nav.analytics') },
     { icon: BarChart3, label: t('nav.reports'), path: '/reports', featureFlag: 'reports' },
   ];

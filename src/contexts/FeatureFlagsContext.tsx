@@ -17,6 +17,11 @@ export interface FeatureFlags {
   reports: boolean;
   userManagement: boolean;
   activityHistory: boolean;
+  employees: boolean;
+  
+  // Business Type
+  servicesBusiness: boolean; // Enable service-based transactions
+  productsBusiness: boolean; // Enable product-based transactions
   
   // Features
   multiPayment: boolean;
@@ -25,6 +30,14 @@ export interface FeatureFlags {
   growthAnalytics: boolean;
   lowStockAlerts: boolean;
   approvalWorkflow: boolean;
+  employeeCommissions: boolean;
+  
+  // Dashboard widgets
+  employeeAnalytics: boolean;
+  recentTransactions: boolean;
+  financialSummary: boolean;
+  topProducts: boolean;
+  inventoryChart: boolean;
 }
 
 // Default flags (all enabled for development)
@@ -42,12 +55,21 @@ const defaultFlags: FeatureFlags = {
   reports: true,
   userManagement: true,
   activityHistory: true,
+  employees: true,
+  servicesBusiness: true,
+  productsBusiness: true,
   multiPayment: true,
   exportPdf: true,
   exportExcel: true,
   growthAnalytics: true,
   lowStockAlerts: true,
   approvalWorkflow: true,
+  employeeCommissions: true,
+  employeeAnalytics: true,
+  recentTransactions: true,
+  financialSummary: true,
+  topProducts: true,
+  inventoryChart: true,
 };
 
 interface FeatureFlagsContextType {

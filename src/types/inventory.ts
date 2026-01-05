@@ -3,7 +3,7 @@ export type UnitType = 'pcs' | 'box' | 'crate' | 'pack' | 'carton' | 'dozen' | '
 export interface UnitInfo {
   type: UnitType;
   label: string;
-  pcsPerUnit: number; // how many pieces per unit (1 for pcs, 12 for dozen, etc.)
+  pcsPerUnit: number;
 }
 
 export const UNIT_OPTIONS: UnitInfo[] = [
@@ -17,19 +17,26 @@ export const UNIT_OPTIONS: UnitInfo[] = [
   { type: 'liter', label: 'Liter (L)', pcsPerUnit: 1 },
 ];
 
+// Item type - can be product or service
+export type ItemType = 'product' | 'service';
+
 export interface Product {
   id: string;
   name: string;
   sku: string;
   category: string;
-  quantity: number; // stored in base unit (pcs or kg/liter)
-  minStock: number;
-  costPrice: number; // weighted average cost per base unit
-  sellingPrice: number; // selling price per base unit
-  unit: UnitType; // base unit for this product
-  supplier?: string; // optional - supplier now handled via purchase orders
+  itemType: ItemType; // NEW: product or service
+  quantity: number; // 0 for services
+  minStock: number; // 0 for services
+  costPrice: number;
+  sellingPrice: number;
+  unit: UnitType;
+  supplier?: string;
   lastUpdated: string;
   imageUrl?: string;
+  // Service-specific fields
+  duration?: number; // in minutes, for services
+  requiresEmployee?: boolean; // if service needs employee assignment
 }
 
 export interface Supplier {
@@ -59,12 +66,11 @@ export interface PurchaseOrderItem {
   quantity: number;
   unit: UnitType;
   pcsPerUnit: number;
-  unitPrice: number; // price per selected unit
-  totalPcs: number; // total pieces calculated
-  costPerPc: number; // calculated cost per piece for this purchase
+  unitPrice: number;
+  totalPcs: number;
+  costPerPc: number;
 }
 
-// Customer type
 export interface Customer {
   id: string;
   name: string;
@@ -74,15 +80,33 @@ export interface Customer {
   status: 'active' | 'inactive';
 }
 
-// Sales Order status types
+// Employee type
+export interface Employee {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: string;
+  status: 'active' | 'inactive';
+  hireDate: string;
+  department?: string;
+  commissionRate?: number; // percentage
+}
+
+// Employee work assignment for services
+export interface EmployeeAssignment {
+  employeeId: string;
+  employeeName: string;
+  percentage: number; // work percentage (e.g., 30%, 70%)
+}
+
 export type SalesOrderStatus = 'pending' | 'received' | 'partially_paid' | 'paid' | 'completed' | 'cancelled';
 
-// Sales Order types
 export interface SalesOrder {
   id: string;
   orderNumber: string;
-  customerId?: string; // optional - linked to customer master
-  customerName: string; // can be entered directly without master
+  customerId?: string;
+  customerName: string;
   items: SalesOrderItem[];
   totalRevenue: number;
   totalCost: number;
@@ -101,25 +125,67 @@ export interface SalesOrderItem {
   quantity: number;
   unit: UnitType;
   pcsPerUnit: number;
-  sellingPrice: number; // selling price per unit
-  costPrice: number; // cost price per unit (from weighted average)
+  sellingPrice: number;
+  costPrice: number;
   totalPcs: number;
   revenue: number;
   cost: number;
   margin: number;
 }
 
-// Stock movement adjustment types
+// POS Transaction types
+export type POSTransactionStatus = 'draft' | 'in_progress' | 'completed' | 'cancelled';
+
+export interface POSCartItem {
+  itemId: string;
+  itemName: string;
+  itemType: ItemType;
+  quantity: number;
+  price: number;
+  total: number;
+  // For services
+  employeeAssignments?: EmployeeAssignment[];
+}
+
+export interface POSTransaction {
+  id: string;
+  transactionNumber: string;
+  items: POSCartItem[];
+  subtotal: number;
+  tax: number;
+  discount: number;
+  total: number;
+  status: POSTransactionStatus;
+  customerId?: string;
+  customerName?: string;
+  paymentMethod?: 'cash' | 'transfer' | 'qris' | 'multi';
+  payments: POSPayment[];
+  paidAmount: number;
+  changeAmount: number;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+  completedBy?: string;
+  notes?: string;
+}
+
+export interface POSPayment {
+  method: 'cash' | 'transfer' | 'qris';
+  amount: number;
+  reference?: string;
+}
+
+// Stock movement types
 export type StockAdjustmentReason = 
-  | 'purchase' // from purchase order
-  | 'sale' // from sales order
-  | 'damage' // damaged goods
-  | 'expired' // expired products
-  | 'correction' // inventory correction
-  | 'initial' // initial stock
-  | 'return_in' // customer return
-  | 'return_out' // return to supplier
-  | 'transfer' // transfer between locations
+  | 'purchase'
+  | 'sale'
+  | 'damage'
+  | 'expired'
+  | 'correction'
+  | 'initial'
+  | 'return_in'
+  | 'return_out'
+  | 'transfer'
   | 'other';
 
 export type StockStatus = 'in-stock' | 'low-stock' | 'out-of-stock';
@@ -131,23 +197,22 @@ export interface StockMovement {
   productId: string;
   productName: string;
   type: StockMovementType;
-  adjustmentReason: StockAdjustmentReason; // reason for adjustment
+  adjustmentReason: StockAdjustmentReason;
   quantity: number;
   unit: UnitType;
   pcsPerUnit: number;
   totalPcs: number;
-  costPerPc: number; // cost per piece at time of movement
-  totalValue: number; // total cost value
-  sellingPricePerPc?: number; // only for stock out (sales)
-  totalRevenue?: number; // only for stock out (sales)
-  margin?: number; // only for stock out (sales)
-  reference: string; // PO number, SO number, adjustment reason, etc.
+  costPerPc: number;
+  totalValue: number;
+  sellingPricePerPc?: number;
+  totalRevenue?: number;
+  margin?: number;
+  reference: string;
   notes: string;
   date: string;
   createdBy: string;
 }
 
-// Adjustment reason labels
 export const ADJUSTMENT_REASONS: { type: StockAdjustmentReason; label: string; direction: 'in' | 'out' | 'both' }[] = [
   { type: 'purchase', label: 'Purchase Order', direction: 'in' },
   { type: 'sale', label: 'Sales Order', direction: 'out' },
@@ -161,7 +226,6 @@ export const ADJUSTMENT_REASONS: { type: StockAdjustmentReason; label: string; d
   { type: 'other', label: 'Other', direction: 'both' },
 ];
 
-// Utility function to calculate weighted average cost
 export function calculateWeightedAverageCost(
   existingQty: number,
   existingCost: number,

@@ -24,6 +24,7 @@ import Profile from "./pages/Profile";
 import UserManagement from "./pages/UserManagement";
 import ActivityHistory from "./pages/ActivityHistory";
 import POS from "./pages/POS";
+import Employees from "./pages/Employees";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -67,6 +68,7 @@ function AppRoutes() {
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
       <Route path="/activity" element={<ProtectedRoute><ActivityHistory /></ProtectedRoute>} />
+      <Route path="/employees" element={<ProtectedRoute><Employees /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
