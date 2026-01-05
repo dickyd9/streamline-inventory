@@ -20,9 +20,13 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { useState, createContext, useContext } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
+
+// Context to share collapsed state
+const SidebarContext = createContext({ collapsed: false });
+export const useSidebarState = () => useContext(SidebarContext);
 
 export function Sidebar() {
   const location = useLocation();
@@ -59,12 +63,13 @@ export function Sidebar() {
   }
 
   return (
-    <aside 
-      className={cn(
-        "fixed left-0 top-0 h-screen bg-sidebar text-sidebar-foreground transition-all duration-300 z-50 flex flex-col",
-        collapsed ? "w-16" : "w-64"
-      )}
-    >
+    <SidebarContext.Provider value={{ collapsed }}>
+      <aside 
+        className={cn(
+          "fixed left-0 top-0 h-screen bg-sidebar text-sidebar-foreground transition-all duration-300 z-50 flex flex-col",
+          collapsed ? "w-16" : "w-64"
+        )}
+      >
       {/* Logo */}
       <div className="flex h-16 items-center justify-between px-4 border-b border-sidebar-border">
         {!collapsed && (
@@ -109,12 +114,12 @@ export function Sidebar() {
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
                 isActive 
-                  ? "bg-sidebar-primary text-sidebar-primary-foreground" 
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                  ? "bg-sidebar-accent text-sidebar-primary border-l-2 border-sidebar-primary" 
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
                 collapsed && "justify-center px-2"
               )}
             >
-              <Icon className="w-5 h-5 flex-shrink-0" />
+              <Icon className={cn("w-5 h-5 flex-shrink-0", isActive && "text-sidebar-primary")} />
               {!collapsed && <span className="font-medium">{item.label}</span>}
             </Link>
           );
@@ -128,15 +133,16 @@ export function Sidebar() {
           className={cn(
             "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
             location.pathname === '/settings'
-              ? "bg-sidebar-primary text-sidebar-primary-foreground"
-              : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+              ? "bg-sidebar-accent text-sidebar-primary border-l-2 border-sidebar-primary"
+              : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
             collapsed && "justify-center px-2"
           )}
         >
-          <Settings className="w-5 h-5 flex-shrink-0" />
+          <Settings className={cn("w-5 h-5 flex-shrink-0", location.pathname === '/settings' && "text-sidebar-primary")} />
           {!collapsed && <span className="font-medium">{t('nav.settings')}</span>}
         </Link>
       </div>
     </aside>
+    </SidebarContext.Provider>
   );
 }
